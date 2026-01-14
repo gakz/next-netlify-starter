@@ -3,12 +3,12 @@ import { redirect } from 'next/navigation'
 
 /**
  * Get the current authenticated user from a server component.
- * Redirects to /login if not authenticated.
+ * Redirects to /auth/sign-in if not authenticated.
  */
 export async function getCurrentUser() {
   const { user } = await neonAuth()
   if (!user) {
-    redirect('/login')
+    redirect('/auth/sign-in')
   }
   return user
 }
