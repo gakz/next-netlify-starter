@@ -24,11 +24,25 @@ const priorityLabels: Record<Priority, string> = {
   high: 'High priority',
 }
 
-// Subtle structural differentiation by priority
+// Left border intensity by priority (neutral slate)
+const priorityBorderStyles: Record<Priority, string> = {
+  high: 'border-l-[3px] border-l-slate-500 dark:border-l-slate-400',
+  medium: 'border-l-[3px] border-l-slate-300 dark:border-l-slate-600',
+  low: 'border-l-[3px] border-l-slate-200 dark:border-l-slate-700',
+}
+
+// Subtle weight differentiation by priority
 const priorityCardStyles: Record<Priority, string> = {
-  high: 'shadow-sm',
-  medium: 'shadow-none',
-  low: 'shadow-none opacity-90',
+  high: 'py-4 shadow-sm',
+  medium: 'py-3.5',
+  low: 'py-3 opacity-85',
+}
+
+// Priority text styling (de-emphasized)
+const priorityTextStyles: Record<Priority, string> = {
+  high: 'text-xs text-stone-400 dark:text-stone-500',
+  medium: 'text-xs text-stone-400 dark:text-stone-500',
+  low: 'text-xs text-stone-300 dark:text-stone-600',
 }
 
 function formatRelativeDate(date: Date | null): string {
@@ -66,10 +80,10 @@ export default function GameCard({ game, isFavorite = false }: GameCardProps) {
   return (
     <div
       className={`
-        bg-white border border-stone-200 rounded-lg p-4
+        bg-white border border-stone-200 rounded-lg px-4
         dark:bg-stone-800 dark:border-stone-700
+        ${priorityBorderStyles[game.priority]}
         ${priorityCardStyles[game.priority]}
-        ${isFavorite ? 'border-l-2 border-l-stone-400 dark:border-l-stone-500' : ''}
       `}
     >
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
@@ -89,14 +103,14 @@ export default function GameCard({ game, isFavorite = false }: GameCardProps) {
             {isUpcoming && formatScheduledTime(game.scheduledTime)}
           </p>
         </div>
-        <div className="flex items-center gap-2 text-sm whitespace-nowrap">
+        <div className="flex items-center gap-2 whitespace-nowrap">
           {isLive && (
-            <span className="text-stone-600 dark:text-stone-300">Live</span>
+            <span className="text-sm text-stone-600 dark:text-stone-300">Live</span>
           )}
           {isUpcoming && (
-            <span className="text-stone-400 dark:text-stone-500">Upcoming</span>
+            <span className="text-sm text-stone-400 dark:text-stone-500">Upcoming</span>
           )}
-          <span className="text-stone-500 dark:text-stone-400">
+          <span className={priorityTextStyles[game.priority]}>
             {priorityLabels[game.priority]}
           </span>
         </div>
