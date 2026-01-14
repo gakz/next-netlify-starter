@@ -47,6 +47,12 @@ export const gameStateSnapshots = pgTable('game_state_snapshots', {
   closeFinish: boolean('close_finish').notNull().default(false),
   // Whether this is the final/latest snapshot
   isFinal: boolean('is_final').notNull().default(false),
+  // NBA-specific fields (populated by ingestion function)
+  stage: varchar('stage', { length: 20 }), // early, mid, late
+  competitive: boolean('competitive'),
+  activityLevel: varchar('activity_level', { length: 20 }), // low, medium, high
+  homeScore: integer('home_score'),
+  awayScore: integer('away_score'),
 })
 
 // Users table (mock user for now)
