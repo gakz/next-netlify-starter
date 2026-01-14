@@ -1,13 +1,18 @@
 'use client'
 
 export type Priority = 'low' | 'medium' | 'high'
+export type GameStatus = 'upcoming' | 'live' | 'completed'
 
 export interface Game {
   id: string
   awayTeam: string
   homeTeam: string
-  completedDate: string
-  priority: Priority
+  status: GameStatus
+  // For completed games
+  completedDate?: string
+  priority?: Priority
+  // For upcoming games
+  scheduledTime?: string
 }
 
 interface GameCardProps {
@@ -29,12 +34,20 @@ const priorityCardStyles: Record<Priority, string> = {
 }
 
 export default function GameCard({ game, isFavorite = false }: GameCardProps) {
+  const isCompleted = game.status === 'completed'
+  const isLive = game.status === 'live'
+  const isUpcoming = game.status === 'upcoming'
+
+  const cardStyles = isCompleted && game.priority
+    ? priorityCardStyles[game.priority]
+    : 'shadow-none'
+
   return (
     <div
       className={`
         bg-white border border-stone-200 rounded-lg p-4
         dark:bg-stone-800 dark:border-stone-700
-        ${priorityCardStyles[game.priority]}
+        ${cardStyles}
         ${isFavorite ? 'border-l-2 border-l-stone-400 dark:border-l-stone-500' : ''}
       `}
     >
@@ -48,11 +61,23 @@ export default function GameCard({ game, isFavorite = false }: GameCardProps) {
             {game.awayTeam} vs {game.homeTeam}
           </h3>
           <p className="text-sm text-stone-500 mt-1 dark:text-stone-400">
-            Completed &bull; {game.completedDate}
+            {isCompleted && game.completedDate && (
+              <>Completed &bull; {game.completedDate}</>
+            )}
+            {isLive && 'In progress'}
+            {isUpcoming && game.scheduledTime && (
+              <>{game.scheduledTime}</>
+            )}
           </p>
         </div>
         <span className="text-sm text-stone-500 dark:text-stone-400 whitespace-nowrap">
-          {priorityLabels[game.priority]}
+          {isCompleted && game.priority && priorityLabels[game.priority]}
+          {isLive && (
+            <span className="text-stone-600 dark:text-stone-300">Live</span>
+          )}
+          {isUpcoming && (
+            <span className="text-stone-400 dark:text-stone-500">Upcoming</span>
+          )}
         </span>
       </div>
     </div>

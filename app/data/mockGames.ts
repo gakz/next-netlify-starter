@@ -1,4 +1,4 @@
-import type { Game, Priority } from '../components/GameCard'
+import type { Game, Priority, GameStatus } from '../components/GameCard'
 
 // Default favorite teams (used if no localStorage data)
 export const defaultFavoriteTeams: string[] = [
@@ -28,10 +28,47 @@ export const allTeams: string[] = [
 ]
 
 export const mockGames: Game[] = [
+  // Upcoming games
+  {
+    id: 'u1',
+    awayTeam: 'Boston Celtics',
+    homeTeam: 'Philadelphia 76ers',
+    status: 'upcoming',
+    scheduledTime: 'Tomorrow, 7:30 PM',
+  },
+  {
+    id: 'u2',
+    awayTeam: 'Green Bay Packers',
+    homeTeam: 'Minnesota Vikings',
+    status: 'upcoming',
+    scheduledTime: 'Sunday, 1:00 PM',
+  },
+  {
+    id: 'u3',
+    awayTeam: 'Los Angeles Dodgers',
+    homeTeam: 'San Francisco Giants',
+    status: 'upcoming',
+    scheduledTime: 'Tomorrow, 9:00 PM',
+  },
+  // Live games
+  {
+    id: 'l1',
+    awayTeam: 'New York Yankees',
+    homeTeam: 'Toronto Blue Jays',
+    status: 'live',
+  },
+  {
+    id: 'l2',
+    awayTeam: 'Manchester United',
+    homeTeam: 'Arsenal',
+    status: 'live',
+  },
+  // Completed games
   {
     id: '1',
     awayTeam: 'Boston Celtics',
     homeTeam: 'Miami Heat',
+    status: 'completed',
     completedDate: 'Today',
     priority: 'high',
   },
@@ -39,6 +76,7 @@ export const mockGames: Game[] = [
     id: '2',
     awayTeam: 'Los Angeles Lakers',
     homeTeam: 'Golden State Warriors',
+    status: 'completed',
     completedDate: 'Today',
     priority: 'medium',
   },
@@ -46,6 +84,7 @@ export const mockGames: Game[] = [
     id: '3',
     awayTeam: 'New York Yankees',
     homeTeam: 'Boston Red Sox',
+    status: 'completed',
     completedDate: 'Yesterday',
     priority: 'high',
   },
@@ -53,6 +92,7 @@ export const mockGames: Game[] = [
     id: '4',
     awayTeam: 'Manchester United',
     homeTeam: 'Liverpool',
+    status: 'completed',
     completedDate: 'Yesterday',
     priority: 'low',
   },
@@ -60,6 +100,7 @@ export const mockGames: Game[] = [
     id: '5',
     awayTeam: 'Denver Nuggets',
     homeTeam: 'Phoenix Suns',
+    status: 'completed',
     completedDate: '2 days ago',
     priority: 'medium',
   },
@@ -67,6 +108,7 @@ export const mockGames: Game[] = [
     id: '6',
     awayTeam: 'Chicago Bears',
     homeTeam: 'Green Bay Packers',
+    status: 'completed',
     completedDate: '3 days ago',
     priority: 'high',
   },
@@ -74,6 +116,7 @@ export const mockGames: Game[] = [
     id: '7',
     awayTeam: 'San Francisco Giants',
     homeTeam: 'Los Angeles Dodgers',
+    status: 'completed',
     completedDate: '5 days ago',
     priority: 'low',
   },
@@ -81,6 +124,7 @@ export const mockGames: Game[] = [
     id: '8',
     awayTeam: 'Toronto Maple Leafs',
     homeTeam: 'Montreal Canadiens',
+    status: 'completed',
     completedDate: '6 days ago',
     priority: 'medium',
   },
@@ -89,15 +133,30 @@ export const mockGames: Game[] = [
 export type DayFilter = 'today' | 'yesterday' | 'last-7-days'
 
 export function filterGamesByDay(games: Game[], filter: DayFilter): Game[] {
+  // Only filter completed games by day
+  const completedGames = games.filter((game) => game.status === 'completed')
+
   switch (filter) {
     case 'today':
-      return games.filter((game) => game.completedDate === 'Today')
+      return completedGames.filter((game) => game.completedDate === 'Today')
     case 'yesterday':
-      return games.filter((game) => game.completedDate === 'Yesterday')
+      return completedGames.filter((game) => game.completedDate === 'Yesterday')
     case 'last-7-days':
-      return games
+      return completedGames
     default:
-      return games
+      return completedGames
+  }
+}
+
+export function getGamesByStatus(games: Game[]): {
+  liveGames: Game[]
+  upcomingGames: Game[]
+  completedGames: Game[]
+} {
+  return {
+    liveGames: games.filter((game) => game.status === 'live'),
+    upcomingGames: games.filter((game) => game.status === 'upcoming'),
+    completedGames: games.filter((game) => game.status === 'completed'),
   }
 }
 
@@ -112,7 +171,11 @@ const priorityOrder: Record<Priority, number> = {
 }
 
 export function sortGamesByPriority(games: Game[]): Game[] {
-  return [...games].sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority])
+  return [...games].sort((a, b) => {
+    const aPriority = a.priority ? priorityOrder[a.priority] : 999
+    const bPriority = b.priority ? priorityOrder[b.priority] : 999
+    return aPriority - bPriority
+  })
 }
 
 export function groupGamesByFavorite(
@@ -134,4 +197,22 @@ export function groupGamesByFavorite(
     favoriteGames: sortGamesByPriority(favoriteGames),
     otherGames: sortGamesByPriority(otherGames),
   }
+}
+
+export function filterByFavorites(
+  games: Game[],
+  favorites: string[]
+): { favoriteGames: Game[]; otherGames: Game[] } {
+  const favoriteGames: Game[] = []
+  const otherGames: Game[] = []
+
+  for (const game of games) {
+    if (isGameFavorite(game, favorites)) {
+      favoriteGames.push(game)
+    } else {
+      otherGames.push(game)
+    }
+  }
+
+  return { favoriteGames, otherGames }
 }
