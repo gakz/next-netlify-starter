@@ -11,9 +11,6 @@ import {
   type NormalizedExpectation,
 } from '../../lib/odds-api'
 
-// Ingestion interval in minutes (configurable)
-const INGESTION_INTERVAL_MINUTES = 15
-
 interface IngestionResult {
   sportKey: string
   eventsProcessed: number
@@ -230,5 +227,5 @@ export default async function handler(req: Request, context: Context) {
 
 // Netlify scheduled function config: runs every 15 minutes
 export const config: Config = {
-  schedule: `*/${INGESTION_INTERVAL_MINUTES} * * * *`,
+  schedule: '*/15 * * * *',
 }
