@@ -3,13 +3,13 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import GameCard from './components/GameCard'
+import type { Game } from './components/GameCard'
 import { useFavorites } from './context/FavoritesContext'
 import {
   mockGames,
   filterGamesByDay,
-  getGamesByStatus,
-  groupGamesByFavorite,
-  filterByFavorites,
+  isGameFavorite,
+  sortGamesByPriority,
   type DayFilter,
 } from './data/mockGames'
 
@@ -49,32 +49,38 @@ function DayFilterNav({
   )
 }
 
+// Order games by status: completed → live → upcoming, then by priority for completed
+function orderGamesByStatus(games: Game[]): Game[] {
+  const completed = sortGamesByPriority(games.filter((g) => g.status === 'completed'))
+  const live = games.filter((g) => g.status === 'live')
+  const upcoming = games.filter((g) => g.status === 'upcoming')
+
+  return [...completed, ...live, ...upcoming]
+}
+
 export default function Home() {
   const [selectedFilter, setSelectedFilter] = useState<DayFilter>('last-7-days')
   const { favorites } = useFavorites()
 
-  // Get games by status
-  const { liveGames, upcomingGames } = getGamesByStatus(mockGames)
-
-  // Filter live/upcoming by favorites
-  const {
-    favoriteGames: favoriteLiveGames,
-    otherGames: otherLiveGames,
-  } = filterByFavorites(liveGames, favorites)
-
-  const {
-    favoriteGames: favoriteUpcomingGames,
-    otherGames: otherUpcomingGames,
-  } = filterByFavorites(upcomingGames, favorites)
-
-  // Filter completed games by day and favorites
+  // Get completed games filtered by day
   const filteredCompletedGames = filterGamesByDay(mockGames, selectedFilter)
-  const { favoriteGames: favoriteCompleted, otherGames: otherCompleted } =
-    groupGamesByFavorite(filteredCompletedGames, favorites)
 
-  const hasLiveGames = liveGames.length > 0
-  const hasUpcomingGames = upcomingGames.length > 0
-  const hasCompletedGames = favoriteCompleted.length > 0 || otherCompleted.length > 0
+  // Get live and upcoming games (not filtered by day)
+  const liveGames = mockGames.filter((g) => g.status === 'live')
+  const upcomingGames = mockGames.filter((g) => g.status === 'upcoming')
+
+  // Combine all games for display
+  const allGamesForDisplay = [...filteredCompletedGames, ...liveGames, ...upcomingGames]
+
+  // Split into favorites and others
+  const favoriteGames = allGamesForDisplay.filter((g) => isGameFavorite(g, favorites))
+  const otherGames = allGamesForDisplay.filter((g) => !isGameFavorite(g, favorites))
+
+  // Order each group by status
+  const orderedFavoriteGames = orderGamesByStatus(favoriteGames)
+  const orderedOtherGames = orderGamesByStatus(otherGames)
+
+  const hasGames = orderedFavoriteGames.length > 0 || orderedOtherGames.length > 0
 
   return (
     <div className="min-h-screen pb-20 sm:pb-0">
@@ -104,76 +110,41 @@ export default function Home() {
 
       {/* Main Content */}
       <main className="max-w-2xl mx-auto px-4 py-6">
-        <div className="space-y-8">
-          {/* Live Games Section */}
-          {hasLiveGames && (
-            <section>
-              <h2 className="text-sm font-medium text-stone-600 dark:text-stone-400 uppercase tracking-wide mb-3">
-                Live Now
-              </h2>
-              <div className="space-y-2">
-                {favoriteLiveGames.map((game) => (
-                  <GameCard key={game.id} game={game} isFavorite />
-                ))}
-                {otherLiveGames.map((game) => (
-                  <GameCard key={game.id} game={game} />
-                ))}
-              </div>
-            </section>
-          )}
+        {!hasGames ? (
+          <div className="text-center py-12">
+            <p className="text-stone-500 dark:text-stone-400">No games found.</p>
+          </div>
+        ) : (
+          <div className="space-y-8">
+            {/* Your Teams Section */}
+            {orderedFavoriteGames.length > 0 && (
+              <section>
+                <h2 className="text-sm font-medium text-stone-600 dark:text-stone-400 uppercase tracking-wide mb-3">
+                  Your Teams
+                </h2>
+                <div className="space-y-2">
+                  {orderedFavoriteGames.map((game) => (
+                    <GameCard key={game.id} game={game} isFavorite />
+                  ))}
+                </div>
+              </section>
+            )}
 
-          {/* Upcoming Games Section */}
-          {hasUpcomingGames && (
-            <section>
-              <h2 className="text-sm font-medium text-stone-600 dark:text-stone-400 uppercase tracking-wide mb-3">
-                Upcoming
-              </h2>
-              <div className="space-y-2">
-                {favoriteUpcomingGames.map((game) => (
-                  <GameCard key={game.id} game={game} isFavorite />
-                ))}
-                {otherUpcomingGames.map((game) => (
-                  <GameCard key={game.id} game={game} />
-                ))}
-              </div>
-            </section>
-          )}
-
-          {/* Completed Games - Your Teams */}
-          {favoriteCompleted.length > 0 && (
-            <section>
-              <h2 className="text-sm font-medium text-stone-600 dark:text-stone-400 uppercase tracking-wide mb-3">
-                Your Teams
-              </h2>
-              <div className="space-y-2">
-                {favoriteCompleted.map((game) => (
-                  <GameCard key={game.id} game={game} isFavorite />
-                ))}
-              </div>
-            </section>
-          )}
-
-          {/* Completed Games - Other */}
-          {otherCompleted.length > 0 && (
-            <section>
-              <h2 className="text-sm font-medium text-stone-600 dark:text-stone-400 uppercase tracking-wide mb-3">
-                Other Games
-              </h2>
-              <div className="space-y-2">
-                {otherCompleted.map((game) => (
-                  <GameCard key={game.id} game={game} />
-                ))}
-              </div>
-            </section>
-          )}
-
-          {/* Empty State */}
-          {!hasLiveGames && !hasUpcomingGames && !hasCompletedGames && (
-            <div className="text-center py-12">
-              <p className="text-stone-500 dark:text-stone-400">No games found.</p>
-            </div>
-          )}
-        </div>
+            {/* Other Games Section */}
+            {orderedOtherGames.length > 0 && (
+              <section>
+                <h2 className="text-sm font-medium text-stone-600 dark:text-stone-400 uppercase tracking-wide mb-3">
+                  Other Games
+                </h2>
+                <div className="space-y-2">
+                  {orderedOtherGames.map((game) => (
+                    <GameCard key={game.id} game={game} />
+                  ))}
+                </div>
+              </section>
+            )}
+          </div>
+        )}
       </main>
 
       {/* Fixed Footer Navigation - Mobile only */}
