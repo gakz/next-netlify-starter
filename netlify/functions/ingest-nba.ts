@@ -1,4 +1,4 @@
-import type { Config, Context } from '@netlify/functions'
+import type { Context } from '@netlify/functions'
 import { neon } from '@neondatabase/serverless'
 import { drizzle } from 'drizzle-orm/neon-http'
 import { eq } from 'drizzle-orm'
@@ -221,7 +221,5 @@ export default async function handler(req: Request, context: Context) {
   }
 }
 
-// Netlify scheduled function config: runs every 5 minutes
-export const config: Config = {
-  schedule: '*/5 * * * *',
-}
+// No schedule - this is a manual/test function only
+// Use ingest-odds.ts for production scheduled ingestion

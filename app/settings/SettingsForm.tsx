@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { toggleFavoriteTeam } from '../actions/games'
+import { useTheme } from '../ThemeProvider'
 
 interface Team {
   id: string
@@ -21,6 +22,7 @@ export default function SettingsForm({ teams, initialFavorites, isLoggedIn }: Se
   const [favorites, setFavorites] = useState<string[]>(initialFavorites)
   const [isPending, startTransition] = useTransition()
   const router = useRouter()
+  const { theme, setTheme } = useTheme()
 
   const handleToggle = (team: Team) => {
     if (!isLoggedIn) {
@@ -88,6 +90,37 @@ export default function SettingsForm({ teams, initialFavorites, isLoggedIn }: Se
             </p>
           </div>
         )}
+
+        {/* Appearance Section */}
+        <section className="mb-8">
+          <div className="mb-4">
+            <h2 className="text-sm font-medium text-stone-600 dark:text-stone-400 uppercase tracking-wide">
+              Appearance
+            </h2>
+            <p className="text-sm text-stone-500 dark:text-stone-400 mt-1">
+              Choose your preferred theme
+            </p>
+          </div>
+
+          <div className="flex gap-2">
+            {(['light', 'dark', 'system'] as const).map((option) => (
+              <button
+                key={option}
+                onClick={() => setTheme(option)}
+                className={`
+                  flex-1 px-4 py-3 rounded-lg border transition-colors text-sm capitalize
+                  ${
+                    theme === option
+                      ? 'border-stone-400 bg-stone-100 font-medium text-stone-900 dark:border-stone-500 dark:bg-stone-700 dark:text-stone-100'
+                      : 'border-stone-200 bg-white hover:bg-stone-50 text-stone-700 dark:border-stone-700 dark:bg-stone-800 dark:hover:bg-stone-750 dark:text-stone-300'
+                  }
+                `}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+        </section>
 
         <section>
           <div className="mb-4">
