@@ -9,10 +9,8 @@ export interface Game {
   homeTeam: string
   status: GameStatus
   priority: Priority
-  // For completed games
-  completedDate?: string
-  // For upcoming games
-  scheduledTime?: string
+  scheduledTime: Date | null
+  completedAt: Date | null
 }
 
 interface GameCardProps {
@@ -31,6 +29,33 @@ const priorityCardStyles: Record<Priority, string> = {
   high: 'shadow-sm',
   medium: 'shadow-none',
   low: 'shadow-none opacity-90',
+}
+
+function formatRelativeDate(date: Date | null): string {
+  if (!date) return ''
+
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+
+  if (diffDays === 0) return 'Today'
+  if (diffDays === 1) return 'Yesterday'
+  if (diffDays < 7) return `${diffDays} days ago`
+  return date.toLocaleDateString()
+}
+
+function formatScheduledTime(date: Date | null): string {
+  if (!date) return ''
+
+  const now = new Date()
+  const diffMs = date.getTime() - now.getTime()
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+
+  const timeStr = date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+
+  if (diffDays === 0) return `Today, ${timeStr}`
+  if (diffDays === 1) return `Tomorrow, ${timeStr}`
+  return `${date.toLocaleDateString([], { weekday: 'short' })}, ${timeStr}`
 }
 
 export default function GameCard({ game, isFavorite = false }: GameCardProps) {
@@ -57,13 +82,11 @@ export default function GameCard({ game, isFavorite = false }: GameCardProps) {
             {game.awayTeam} vs {game.homeTeam}
           </h3>
           <p className="text-sm text-stone-500 mt-1 dark:text-stone-400">
-            {isCompleted && game.completedDate && (
-              <>Completed &bull; {game.completedDate}</>
+            {isCompleted && (
+              <>Completed &bull; {formatRelativeDate(game.completedAt)}</>
             )}
             {isLive && 'In progress'}
-            {isUpcoming && game.scheduledTime && (
-              <>{game.scheduledTime}</>
-            )}
+            {isUpcoming && formatScheduledTime(game.scheduledTime)}
           </p>
         </div>
         <div className="flex items-center gap-2 text-sm whitespace-nowrap">
