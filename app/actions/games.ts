@@ -2,7 +2,7 @@
 
 import type { GameWithDetails } from '@/db/queries'
 import type { Priority, GameStatus } from '@/app/components/GameCard'
-import { getCurrentUserOrNull } from '@/lib/auth'
+import { getCurrentUserOrNull, ensureUserInDatabase } from '@/lib/auth'
 
 // Re-export types for client use
 export type { GameWithDetails }
@@ -10,6 +10,14 @@ export type { GameWithDetails }
 // Check if database is configured
 function isDatabaseConfigured(): boolean {
   return !!process.env.DATABASE_URL
+}
+
+/**
+ * Check if user is authenticated
+ */
+export async function isAuthenticated(): Promise<boolean> {
+  const user = await getCurrentUserOrNull()
+  return !!user
 }
 
 /**
@@ -68,16 +76,21 @@ export async function fetchAllTeams(): Promise<{ id: string; name: string; leagu
 }
 
 /**
- * Toggle a team as favorite
+ * Toggle a team as favorite (requires authentication)
  */
-export async function toggleFavoriteTeam(teamId: string, isFavorite: boolean): Promise<void> {
+export async function toggleFavoriteTeam(teamId: string, isFavorite: boolean): Promise<{ success: boolean; requiresAuth?: boolean }> {
   if (!isDatabaseConfigured()) {
-    return // No-op when database not configured
+    return { success: false }
   }
 
   try {
     const user = await getCurrentUserOrNull()
-    if (!user) return
+    if (!user) {
+      return { success: false, requiresAuth: true }
+    }
+
+    // Ensure user exists in our database
+    await ensureUserInDatabase(user.id, user.primaryEmail || '')
 
     const { addFavoriteTeam, removeFavoriteTeam } = await import('@/db/queries')
 
@@ -86,8 +99,11 @@ export async function toggleFavoriteTeam(teamId: string, isFavorite: boolean): P
     } else {
       await addFavoriteTeam(user.id, teamId)
     }
+
+    return { success: true }
   } catch (error) {
     console.error('Failed to toggle favorite team:', error)
+    return { success: false }
   }
 }
 

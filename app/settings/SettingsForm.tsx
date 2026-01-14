@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { toggleFavoriteTeam } from '../actions/games'
 
 interface Team {
@@ -13,13 +14,20 @@ interface Team {
 interface SettingsFormProps {
   teams: Team[]
   initialFavorites: string[]
+  isLoggedIn: boolean
 }
 
-export default function SettingsForm({ teams, initialFavorites }: SettingsFormProps) {
+export default function SettingsForm({ teams, initialFavorites, isLoggedIn }: SettingsFormProps) {
   const [favorites, setFavorites] = useState<string[]>(initialFavorites)
   const [isPending, startTransition] = useTransition()
+  const router = useRouter()
 
   const handleToggle = (team: Team) => {
+    if (!isLoggedIn) {
+      router.push('/login')
+      return
+    }
+
     const isFavorite = favorites.includes(team.name)
 
     // Optimistic update
@@ -31,7 +39,16 @@ export default function SettingsForm({ teams, initialFavorites }: SettingsFormPr
 
     // Server update
     startTransition(async () => {
-      await toggleFavoriteTeam(team.id, isFavorite)
+      const result = await toggleFavoriteTeam(team.id, isFavorite)
+      if (result.requiresAuth) {
+        // Revert optimistic update and redirect to login
+        if (isFavorite) {
+          setFavorites([...favorites, team.name])
+        } else {
+          setFavorites(favorites.filter((f) => f !== team.name))
+        }
+        router.push('/login')
+      }
     })
   }
 
@@ -61,6 +78,17 @@ export default function SettingsForm({ teams, initialFavorites }: SettingsFormPr
 
       {/* Main Content */}
       <main className="max-w-2xl mx-auto px-4 py-6">
+        {!isLoggedIn && (
+          <div className="mb-6 p-4 bg-stone-100 border border-stone-200 rounded-lg dark:bg-stone-800 dark:border-stone-700">
+            <p className="text-sm text-stone-600 dark:text-stone-400">
+              <Link href="/login" className="font-medium text-stone-900 hover:underline dark:text-stone-100">
+                Sign in
+              </Link>{' '}
+              to save your favorite teams across devices.
+            </p>
+          </div>
+        )}
+
         <section>
           <div className="mb-4">
             <h2 className="text-sm font-medium text-stone-600 dark:text-stone-400 uppercase tracking-wide">
@@ -127,7 +155,9 @@ export default function SettingsForm({ teams, initialFavorites }: SettingsFormPr
       <footer className="border-t border-stone-200 mt-auto dark:border-stone-700">
         <div className="max-w-2xl mx-auto px-4 py-4">
           <p className="text-xs text-stone-400 text-center dark:text-stone-500">
-            Your preferences are saved automatically.
+            {isLoggedIn
+              ? 'Your preferences are saved automatically.'
+              : 'Sign in to save your preferences.'}
           </p>
         </div>
       </footer>
