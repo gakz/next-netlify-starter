@@ -17,6 +17,36 @@ const dayFilterOptions: { value: DayFilter; label: string }[] = [
   { value: 'last-7-days', label: 'Last 7 Days' },
 ]
 
+function DayFilterNav({
+  selectedFilter,
+  onFilterChange,
+  className = '',
+}: {
+  selectedFilter: DayFilter
+  onFilterChange: (filter: DayFilter) => void
+  className?: string
+}) {
+  return (
+    <nav className={`flex gap-1 ${className}`} role="tablist">
+      {dayFilterOptions.map((option) => (
+        <button
+          key={option.value}
+          onClick={() => onFilterChange(option.value)}
+          role="tab"
+          aria-selected={selectedFilter === option.value}
+          className={`flex-1 sm:flex-none px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+            selectedFilter === option.value
+              ? 'bg-stone-200 text-stone-900 dark:bg-stone-700 dark:text-stone-100'
+              : 'text-stone-600 hover:bg-stone-100 hover:text-stone-800 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-stone-200'
+          }`}
+        >
+          {option.label}
+        </button>
+      ))}
+    </nav>
+  )
+}
+
 export default function Home() {
   const [selectedFilter, setSelectedFilter] = useState<DayFilter>('last-7-days')
   const { favorites } = useFavorites()
@@ -26,11 +56,11 @@ export default function Home() {
   const hasGames = favoriteGames.length > 0 || otherGames.length > 0
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen pb-20 sm:pb-0">
       {/* Header */}
       <header className="bg-white border-b border-stone-200 sticky top-0 z-10 dark:bg-stone-800 dark:border-stone-700">
         <div className="max-w-2xl mx-auto px-4 py-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <h1 className="text-xl font-semibold text-stone-900 dark:text-stone-100">Game Review</h1>
               <Link
@@ -40,37 +70,14 @@ export default function Home() {
                 Settings
               </Link>
             </div>
-
-            {/* Spoiler Mode Toggle */}
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-stone-600 dark:text-stone-400">Strict spoiler mode</span>
-              <div className="relative">
-                <div className="w-10 h-6 bg-stone-400 rounded-full cursor-not-allowed dark:bg-stone-600">
-                  <div className="absolute right-1 top-1 w-4 h-4 bg-white rounded-full shadow-sm dark:bg-stone-200" />
-                </div>
-              </div>
-              <span className="text-xs text-stone-500 uppercase tracking-wide dark:text-stone-400">On</span>
-            </div>
           </div>
 
-          {/* Day Filter */}
-          <nav className="mt-4 flex gap-1" role="tablist">
-            {dayFilterOptions.map((option) => (
-              <button
-                key={option.value}
-                onClick={() => setSelectedFilter(option.value)}
-                role="tab"
-                aria-selected={selectedFilter === option.value}
-                className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                  selectedFilter === option.value
-                    ? 'bg-stone-200 text-stone-900 dark:bg-stone-700 dark:text-stone-100'
-                    : 'text-stone-600 hover:bg-stone-100 hover:text-stone-800 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-stone-200'
-                }`}
-              >
-                {option.label}
-              </button>
-            ))}
-          </nav>
+          {/* Day Filter - Desktop only */}
+          <DayFilterNav
+            selectedFilter={selectedFilter}
+            onFilterChange={setSelectedFilter}
+            className="mt-4 hidden sm:flex"
+          />
         </div>
       </header>
 
@@ -113,12 +120,13 @@ export default function Home() {
         )}
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-stone-200 mt-auto dark:border-stone-700">
-        <div className="max-w-2xl mx-auto px-4 py-4">
-          <p className="text-xs text-stone-400 text-center dark:text-stone-500">
-            All games shown are completed. No outcomes revealed.
-          </p>
+      {/* Fixed Footer Navigation - Mobile only */}
+      <footer className="fixed bottom-0 left-0 right-0 bg-white border-t border-stone-200 sm:hidden dark:bg-stone-800 dark:border-stone-700">
+        <div className="max-w-2xl mx-auto px-4 py-3">
+          <DayFilterNav
+            selectedFilter={selectedFilter}
+            onFilterChange={setSelectedFilter}
+          />
         </div>
       </footer>
     </div>
