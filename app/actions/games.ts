@@ -90,7 +90,7 @@ export async function toggleFavoriteTeam(teamId: string, isFavorite: boolean): P
     }
 
     // Ensure user exists in our database
-    await ensureUserInDatabase(user.id, user.primaryEmail || '')
+    await ensureUserInDatabase(user.id, user.email || '')
 
     const { addFavoriteTeam, removeFavoriteTeam } = await import('@/db/queries')
 

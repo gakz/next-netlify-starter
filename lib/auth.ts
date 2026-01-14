@@ -1,11 +1,15 @@
-import { stackServerApp } from './stack'
+import { neonAuth } from '@neondatabase/auth/next/server'
+import { redirect } from 'next/navigation'
 
 /**
  * Get the current authenticated user from a server component.
  * Redirects to /login if not authenticated.
  */
 export async function getCurrentUser() {
-  const user = await stackServerApp.getUser({ or: 'redirect' })
+  const { user } = await neonAuth()
+  if (!user) {
+    redirect('/login')
+  }
   return user
 }
 
@@ -14,7 +18,7 @@ export async function getCurrentUser() {
  * Returns null if not authenticated.
  */
 export async function getCurrentUserOrNull() {
-  const user = await stackServerApp.getUser()
+  const { user } = await neonAuth()
   return user
 }
 

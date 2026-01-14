@@ -14,9 +14,9 @@
     "db:seed": "npx tsx db/seed.ts"
   },
   "dependencies": {
+    "@neondatabase/auth": "^0.1.0-beta.21",
     "@neondatabase/serverless": "^1.0.2",
     "@netlify/functions": "^5.1.2",
-    "@stackframe/stack": "^2.8.58",
     "drizzle-orm": "^0.45.1",
     "next": "^16.0.7",
     "react": "^19.2.1",
