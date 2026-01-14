@@ -4,7 +4,7 @@ import { stackServerApp } from '@/lib/stack'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Game Review',
+  title: 'SpoilSport',
   description: 'Spoiler-free sports watchability guide',
 }
 

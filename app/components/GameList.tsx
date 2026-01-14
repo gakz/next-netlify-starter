@@ -123,15 +123,13 @@ export default function GameList({ initialGames, initialFavorites }: GameListPro
       <header className="bg-white border-b border-stone-200 sticky top-0 z-10 dark:bg-stone-800 dark:border-stone-700">
         <div className="max-w-2xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <h1 className="text-xl font-semibold text-stone-900 dark:text-stone-100">Game Review</h1>
-              <Link
-                href="/settings"
-                className="text-sm text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200"
-              >
-                Settings
-              </Link>
-            </div>
+            <h1 className="text-xl font-semibold text-stone-900 dark:text-stone-100">SpoilSport</h1>
+            <Link
+              href="/settings"
+              className="text-sm text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200"
+            >
+              Settings
+            </Link>
           </div>
 
           {/* Day Filter - Desktop only */}
