@@ -8,9 +8,9 @@ export interface Game {
   awayTeam: string
   homeTeam: string
   status: GameStatus
+  priority: Priority
   // For completed games
   completedDate?: string
-  priority?: Priority
   // For upcoming games
   scheduledTime?: string
 }
@@ -38,16 +38,12 @@ export default function GameCard({ game, isFavorite = false }: GameCardProps) {
   const isLive = game.status === 'live'
   const isUpcoming = game.status === 'upcoming'
 
-  const cardStyles = isCompleted && game.priority
-    ? priorityCardStyles[game.priority]
-    : 'shadow-none'
-
   return (
     <div
       className={`
         bg-white border border-stone-200 rounded-lg p-4
         dark:bg-stone-800 dark:border-stone-700
-        ${cardStyles}
+        ${priorityCardStyles[game.priority]}
         ${isFavorite ? 'border-l-2 border-l-stone-400 dark:border-l-stone-500' : ''}
       `}
     >
@@ -70,15 +66,17 @@ export default function GameCard({ game, isFavorite = false }: GameCardProps) {
             )}
           </p>
         </div>
-        <span className="text-sm text-stone-500 dark:text-stone-400 whitespace-nowrap">
-          {isCompleted && game.priority && priorityLabels[game.priority]}
+        <div className="flex items-center gap-2 text-sm whitespace-nowrap">
           {isLive && (
             <span className="text-stone-600 dark:text-stone-300">Live</span>
           )}
           {isUpcoming && (
             <span className="text-stone-400 dark:text-stone-500">Upcoming</span>
           )}
-        </span>
+          <span className="text-stone-500 dark:text-stone-400">
+            {priorityLabels[game.priority]}
+          </span>
+        </div>
       </div>
     </div>
   )

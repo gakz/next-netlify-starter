@@ -34,6 +34,7 @@ export const mockGames: Game[] = [
     awayTeam: 'Boston Celtics',
     homeTeam: 'Philadelphia 76ers',
     status: 'upcoming',
+    priority: 'high',
     scheduledTime: 'Tomorrow, 7:30 PM',
   },
   {
@@ -41,6 +42,7 @@ export const mockGames: Game[] = [
     awayTeam: 'Green Bay Packers',
     homeTeam: 'Minnesota Vikings',
     status: 'upcoming',
+    priority: 'high',
     scheduledTime: 'Sunday, 1:00 PM',
   },
   {
@@ -48,6 +50,7 @@ export const mockGames: Game[] = [
     awayTeam: 'Los Angeles Dodgers',
     homeTeam: 'San Francisco Giants',
     status: 'upcoming',
+    priority: 'medium',
     scheduledTime: 'Tomorrow, 9:00 PM',
   },
   // Live games
@@ -56,12 +59,14 @@ export const mockGames: Game[] = [
     awayTeam: 'New York Yankees',
     homeTeam: 'Toronto Blue Jays',
     status: 'live',
+    priority: 'high',
   },
   {
     id: 'l2',
     awayTeam: 'Manchester United',
     homeTeam: 'Arsenal',
     status: 'live',
+    priority: 'medium',
   },
   // Completed games
   {
@@ -171,11 +176,7 @@ const priorityOrder: Record<Priority, number> = {
 }
 
 export function sortGamesByPriority(games: Game[]): Game[] {
-  return [...games].sort((a, b) => {
-    const aPriority = a.priority ? priorityOrder[a.priority] : 999
-    const bPriority = b.priority ? priorityOrder[b.priority] : 999
-    return aPriority - bPriority
-  })
+  return [...games].sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority])
 }
 
 export function groupGamesByFavorite(
