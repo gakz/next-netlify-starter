@@ -7,6 +7,7 @@ import {
   boolean,
   primaryKey,
   text,
+  doublePrecision,
 } from 'drizzle-orm/pg-core'
 import { relations } from 'drizzle-orm'
 import { usersSync } from 'drizzle-orm/neon'
@@ -60,6 +61,29 @@ export const gameStateSnapshots = pgTable('game_state_snapshots', {
   awayScore: integer('away_score'),
 })
 
+// Game expectations - betting odds data for internal heuristics
+// NOT for public display - used only for watchability predictions
+export const gameExpectations = pgTable('game_expectations', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  gameId: uuid('game_id').references(() => games.id, { onDelete: 'cascade' }),
+  sportKey: varchar('sport_key', { length: 100 }).notNull(), // e.g., 'basketball_nba'
+  externalEventId: varchar('external_event_id', { length: 255 }), // The Odds API event ID
+  commenceTime: timestamp('commence_time'),
+  homeTeam: varchar('home_team', { length: 255 }),
+  awayTeam: varchar('away_team', { length: 255 }),
+  // Spread data
+  spreadHome: doublePrecision('spread_home'), // e.g., -4.5
+  spreadAway: doublePrecision('spread_away'), // e.g., +4.5
+  // Totals data
+  totalValue: doublePrecision('total_value'), // e.g., 224.5
+  totalOverPrice: doublePrecision('total_over_price'), // decimal odds
+  totalUnderPrice: doublePrecision('total_under_price'), // decimal odds
+  // Metadata
+  source: varchar('source', { length: 100 }).notNull().default('the-odds-api'),
+  bookmaker: varchar('bookmaker', { length: 100 }), // which bookmaker the odds came from
+  capturedAt: timestamp('captured_at').defaultNow().notNull(),
+})
+
 // Users table - synced from Neon Auth on first login
 export const users = pgTable('users', {
   id: text('id').primaryKey(), // Neon Auth user ID
@@ -110,6 +134,13 @@ export const gameStateSnapshotsRelations = relations(gameStateSnapshots, ({ one 
   }),
 }))
 
+export const gameExpectationsRelations = relations(gameExpectations, ({ one }) => ({
+  game: one(games, {
+    fields: [gameExpectations.gameId],
+    references: [games.id],
+  }),
+}))
+
 export const usersRelations = relations(users, ({ many }) => ({
   userTeams: many(userTeams),
 }))
@@ -136,3 +167,5 @@ export type User = typeof users.$inferSelect
 export type NewUser = typeof users.$inferInsert
 export type UserTeam = typeof userTeams.$inferSelect
 export type NewUserTeam = typeof userTeams.$inferInsert
+export type GameExpectation = typeof gameExpectations.$inferSelect
+export type NewGameExpectation = typeof gameExpectations.$inferInsert
