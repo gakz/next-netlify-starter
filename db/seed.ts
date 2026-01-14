@@ -186,26 +186,8 @@ async function seed() {
 
   console.log(`Created ${insertedSnapshots.length} game state snapshots`)
 
-  // Create mock user
-  const [mockUser] = await db
-    .insert(users)
-    .values([{ name: 'Demo User' }])
-    .returning()
-
-  console.log(`Created user: ${mockUser.name}`)
-
-  // Set favorite teams for mock user
-  const favoriteTeamNames = ['Boston Celtics', 'New York Yankees', 'Los Angeles Dodgers']
-  const favoriteTeams = favoriteTeamNames.map((name) => findTeam(name))
-
-  await db.insert(userTeams).values(
-    favoriteTeams.map((team) => ({
-      userId: mockUser.id,
-      teamId: team.id,
-    }))
-  )
-
-  console.log(`Set ${favoriteTeams.length} favorite teams for user`)
+  // Note: Users are now created by Neon Auth on first login
+  // User data is synced to our users table automatically
 
   console.log('Seeding complete!')
 }

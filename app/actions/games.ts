@@ -2,6 +2,7 @@
 
 import type { GameWithDetails } from '@/db/queries'
 import type { Priority, GameStatus } from '@/app/components/GameCard'
+import { getCurrentUserOrNull } from '@/lib/auth'
 
 // Re-export types for client use
 export type { GameWithDetails }
@@ -38,9 +39,10 @@ export async function fetchFavoriteTeams(): Promise<string[]> {
   }
 
   try {
-    const { getMockUser, getUserFavoriteTeams } = await import('@/db/queries')
-    const user = await getMockUser()
+    const user = await getCurrentUserOrNull()
     if (!user) return []
+
+    const { getUserFavoriteTeams } = await import('@/db/queries')
     return await getUserFavoriteTeams(user.id)
   } catch (error) {
     console.error('Failed to fetch favorite teams:', error)
@@ -74,9 +76,10 @@ export async function toggleFavoriteTeam(teamId: string, isFavorite: boolean): P
   }
 
   try {
-    const { getMockUser, addFavoriteTeam, removeFavoriteTeam } = await import('@/db/queries')
-    const user = await getMockUser()
+    const user = await getCurrentUserOrNull()
     if (!user) return
+
+    const { addFavoriteTeam, removeFavoriteTeam } = await import('@/db/queries')
 
     if (isFavorite) {
       await removeFavoriteTeam(user.id, teamId)

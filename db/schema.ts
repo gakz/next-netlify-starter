@@ -6,8 +6,13 @@ import {
   integer,
   boolean,
   primaryKey,
+  text,
 } from 'drizzle-orm/pg-core'
 import { relations } from 'drizzle-orm'
+import { usersSync } from 'drizzle-orm/neon'
+
+// Re-export usersSync for queries
+export { usersSync }
 
 // Teams table
 export const teams = pgTable('teams', {
@@ -55,10 +60,10 @@ export const gameStateSnapshots = pgTable('game_state_snapshots', {
   awayScore: integer('away_score'),
 })
 
-// Users table (mock user for now)
+// Users table - synced from Neon Auth on first login
 export const users = pgTable('users', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  name: varchar('name', { length: 255 }).notNull(),
+  id: text('id').primaryKey(), // Neon Auth user ID
+  email: varchar('email', { length: 255 }).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
 
@@ -66,7 +71,7 @@ export const users = pgTable('users', {
 export const userTeams = pgTable(
   'user_teams',
   {
-    userId: uuid('user_id')
+    userId: text('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     teamId: uuid('team_id')

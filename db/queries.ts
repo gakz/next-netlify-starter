@@ -93,22 +93,6 @@ export async function getCompletedGames(since?: Date): Promise<GameWithDetails[]
   }))
 }
 
-/**
- * Get the mock user (first user in database)
- */
-export async function getMockUser() {
-  const user = await db.query.users.findFirst({
-    with: {
-      userTeams: {
-        with: {
-          team: true,
-        },
-      },
-    },
-  })
-
-  return user
-}
 
 /**
  * Get favorite team names for a user
