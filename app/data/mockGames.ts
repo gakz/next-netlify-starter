@@ -1,4 +1,11 @@
-import type { Game } from '../components/GameCard'
+import type { Game, Priority } from '../components/GameCard'
+
+// User's favorite teams
+export const favoriteTeams: string[] = [
+  'Boston Celtics',
+  'New York Yankees',
+  'Green Bay Packers',
+]
 
 export const mockGames: Game[] = [
   {
@@ -6,64 +13,56 @@ export const mockGames: Game[] = [
     awayTeam: 'Boston Celtics',
     homeTeam: 'Miami Heat',
     completedDate: 'Today',
-    watchability: 'highly-watchable',
-    descriptors: ['Sustained tension', 'Extended finish', 'Momentum swings'],
+    priority: 'high',
   },
   {
     id: '2',
     awayTeam: 'Los Angeles Lakers',
     homeTeam: 'Golden State Warriors',
     completedDate: 'Today',
-    watchability: 'worth-considering',
-    descriptors: ['Competitive late', 'Momentum swings'],
+    priority: 'medium',
   },
   {
     id: '3',
     awayTeam: 'New York Yankees',
     homeTeam: 'Boston Red Sox',
     completedDate: 'Yesterday',
-    watchability: 'highly-watchable',
-    descriptors: ['Extended finish', 'Sustained tension'],
+    priority: 'high',
   },
   {
     id: '4',
     awayTeam: 'Manchester United',
     homeTeam: 'Liverpool',
     completedDate: 'Yesterday',
-    watchability: 'skip',
-    descriptors: ['Early-decided'],
+    priority: 'low',
   },
   {
     id: '5',
     awayTeam: 'Denver Nuggets',
     homeTeam: 'Phoenix Suns',
     completedDate: '2 days ago',
-    watchability: 'worth-considering',
-    descriptors: ['Sustained tension', 'Competitive late'],
+    priority: 'medium',
   },
   {
     id: '6',
     awayTeam: 'Chicago Bears',
     homeTeam: 'Green Bay Packers',
     completedDate: '3 days ago',
-    watchability: 'highly-watchable',
-    descriptors: ['Momentum swings', 'Extended finish', 'Competitive late'],
+    priority: 'high',
   },
   {
     id: '7',
     awayTeam: 'San Francisco Giants',
     homeTeam: 'Los Angeles Dodgers',
     completedDate: '5 days ago',
-    watchability: 'skip',
-    descriptors: ['Early-decided'],
+    priority: 'low',
   },
   {
     id: '8',
     awayTeam: 'Toronto Maple Leafs',
     homeTeam: 'Montreal Canadiens',
     completedDate: '6 days ago',
-    watchability: 'worth-considering',
-    descriptors: ['Competitive late', 'Sustained tension'],
+    priority: 'medium',
   },
 ]
 
@@ -79,5 +78,40 @@ export function filterGamesByDay(games: Game[], filter: DayFilter): Game[] {
       return games
     default:
       return games
+  }
+}
+
+export function isGameFavorite(game: Game, favorites: string[]): boolean {
+  return favorites.includes(game.awayTeam) || favorites.includes(game.homeTeam)
+}
+
+const priorityOrder: Record<Priority, number> = {
+  high: 0,
+  medium: 1,
+  low: 2,
+}
+
+export function sortGamesByPriority(games: Game[]): Game[] {
+  return [...games].sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority])
+}
+
+export function groupGamesByFavorite(
+  games: Game[],
+  favorites: string[]
+): { favoriteGames: Game[]; otherGames: Game[] } {
+  const favoriteGames: Game[] = []
+  const otherGames: Game[] = []
+
+  for (const game of games) {
+    if (isGameFavorite(game, favorites)) {
+      favoriteGames.push(game)
+    } else {
+      otherGames.push(game)
+    }
+  }
+
+  return {
+    favoriteGames: sortGamesByPriority(favoriteGames),
+    otherGames: sortGamesByPriority(otherGames),
   }
 }

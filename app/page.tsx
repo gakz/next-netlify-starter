@@ -2,7 +2,13 @@
 
 import { useState } from 'react'
 import GameCard from './components/GameCard'
-import { mockGames, filterGamesByDay, type DayFilter } from './data/mockGames'
+import {
+  mockGames,
+  filterGamesByDay,
+  groupGamesByFavorite,
+  favoriteTeams,
+  type DayFilter,
+} from './data/mockGames'
 
 const dayFilterOptions: { value: DayFilter; label: string }[] = [
   { value: 'today', label: 'Today' },
@@ -13,6 +19,9 @@ const dayFilterOptions: { value: DayFilter; label: string }[] = [
 export default function Home() {
   const [selectedFilter, setSelectedFilter] = useState<DayFilter>('last-7-days')
   const filteredGames = filterGamesByDay(mockGames, selectedFilter)
+  const { favoriteGames, otherGames } = groupGamesByFavorite(filteredGames, favoriteTeams)
+
+  const hasGames = favoriteGames.length > 0 || otherGames.length > 0
 
   return (
     <div className="min-h-screen">
@@ -57,15 +66,39 @@ export default function Home() {
 
       {/* Main Content */}
       <main className="max-w-2xl mx-auto px-4 py-6">
-        {filteredGames.length === 0 ? (
+        {!hasGames ? (
           <div className="text-center py-12">
             <p className="text-stone-500 dark:text-stone-400">No games found for this period.</p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {filteredGames.map((game) => (
-              <GameCard key={game.id} game={game} />
-            ))}
+          <div className="space-y-8">
+            {/* Your Teams Section */}
+            {favoriteGames.length > 0 && (
+              <section>
+                <h2 className="text-sm font-medium text-stone-600 dark:text-stone-400 uppercase tracking-wide mb-3">
+                  Your Teams
+                </h2>
+                <div className="space-y-2">
+                  {favoriteGames.map((game) => (
+                    <GameCard key={game.id} game={game} isFavorite />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* Other Games Section */}
+            {otherGames.length > 0 && (
+              <section>
+                <h2 className="text-sm font-medium text-stone-600 dark:text-stone-400 uppercase tracking-wide mb-3">
+                  Other Games
+                </h2>
+                <div className="space-y-2">
+                  {otherGames.map((game) => (
+                    <GameCard key={game.id} game={game} />
+                  ))}
+                </div>
+              </section>
+            )}
           </div>
         )}
       </main>
