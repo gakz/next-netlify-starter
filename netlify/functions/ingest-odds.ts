@@ -95,10 +95,10 @@ async function ingestSport(
         }
 
         // Insert the expectation (always insert new records to track history)
-        // Use undefined instead of null for gameId so Drizzle omits it from the query
-        // when no matching game is found (null would serialize as empty string, failing UUID validation)
+        // Only include gameId when it has a value - omitting it entirely lets PostgreSQL use NULL
+        // (passing undefined causes Drizzle to emit 'default' which fails since there's no default)
         await db.insert(gameExpectations).values({
-          gameId: gameId ?? undefined,
+          ...(gameId ? { gameId } : {}),
           sportKey: expectation.sportKey,
           externalEventId: expectation.externalEventId,
           commenceTime: expectation.commenceTime,
