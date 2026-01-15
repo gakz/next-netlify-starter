@@ -16,6 +16,7 @@ interface GameListProps {
   initialGames: Game[]
   initialFavorites: string[]
   lastScoresUpdate: Date | null
+  isLoggedIn: boolean
 }
 
 function DayFilterNav({
@@ -120,7 +121,7 @@ function filterCompletedByDay(games: Game[], filter: DayFilter): Game[] {
   })
 }
 
-export default function GameList({ initialGames, initialFavorites, lastScoresUpdate }: GameListProps) {
+export default function GameList({ initialGames, initialFavorites, lastScoresUpdate, isLoggedIn }: GameListProps) {
   const [selectedFilter, setSelectedFilter] = useState<DayFilter>('last-7-days')
   const [showScores, setShowScores] = useState(false)
 
@@ -173,10 +174,10 @@ export default function GameList({ initialGames, initialFavorites, lastScoresUpd
                 </button>
               </label>
               <Link
-                href="/settings"
+                href={isLoggedIn ? '/settings' : '/auth/sign-in'}
                 className="text-sm text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200"
               >
-                Settings
+                {isLoggedIn ? 'Settings' : 'Login'}
               </Link>
             </div>
           </div>
@@ -211,6 +212,28 @@ export default function GameList({ initialGames, initialFavorites, lastScoresUpd
                   ))}
                 </div>
               </section>
+            )}
+
+            {/* Sign in callout for non-logged in users */}
+            {!isLoggedIn && (
+              <div className="bg-stone-100 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-lg p-4">
+                <p className="text-sm text-stone-600 dark:text-stone-300">
+                  <Link
+                    href="/auth/sign-in"
+                    className="font-medium text-stone-900 dark:text-stone-100 hover:underline"
+                  >
+                    Sign in
+                  </Link>
+                  {' '}or{' '}
+                  <Link
+                    href="/auth/sign-up"
+                    className="font-medium text-stone-900 dark:text-stone-100 hover:underline"
+                  >
+                    create an account
+                  </Link>
+                  {' '}to save your favorite teams.
+                </p>
+              </div>
             )}
 
             {/* Other Games Section */}
