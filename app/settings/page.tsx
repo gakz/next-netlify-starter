@@ -1,5 +1,11 @@
+import type { Metadata } from 'next'
 import { fetchAllTeams, fetchFavoriteTeams, isAuthenticated } from '../actions/games'
 import SettingsForm from './SettingsForm'
+
+export const metadata: Metadata = {
+  title: 'Settings',
+  description: 'Manage your favorite teams and preferences on SpoilSport.',
+}
 
 export const dynamic = 'force-dynamic'
 

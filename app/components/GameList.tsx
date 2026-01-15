@@ -3,18 +3,12 @@
 import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import GameCard, { type Game, type Priority } from './GameCard'
+import { useTheme } from '../ThemeProvider'
 
-type DayFilter = 'today' | 'yesterday' | 'last-7-days'
 type SportFilter = 'all' | 'NBA' | 'NFL'
 
-const dayFilterOptions: { value: DayFilter; label: string }[] = [
-  { value: 'today', label: 'Today' },
-  { value: 'yesterday', label: 'Yesterday' },
-  { value: 'last-7-days', label: 'Last 7 Days' },
-]
-
 const sportFilterOptions: { value: SportFilter; label: string }[] = [
-  { value: 'all', label: 'All' },
+  { value: 'all', label: 'All games' },
   { value: 'NBA', label: 'NBA' },
   { value: 'NFL', label: 'NFL' },
 ]
@@ -24,36 +18,6 @@ interface GameListProps {
   initialFavorites: string[]
   lastScoresUpdate: Date | null
   isLoggedIn: boolean
-}
-
-function DayFilterNav({
-  selectedFilter,
-  onFilterChange,
-  className = '',
-}: {
-  selectedFilter: DayFilter
-  onFilterChange: (filter: DayFilter) => void
-  className?: string
-}) {
-  return (
-    <nav className={`flex gap-1 ${className}`} role="tablist">
-      {dayFilterOptions.map((option) => (
-        <button
-          key={option.value}
-          onClick={() => onFilterChange(option.value)}
-          role="tab"
-          aria-selected={selectedFilter === option.value}
-          className={`flex-1 sm:flex-none px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-            selectedFilter === option.value
-              ? 'bg-stone-200 text-stone-900 dark:bg-stone-700 dark:text-stone-100'
-              : 'text-stone-600 hover:bg-stone-100 hover:text-stone-800 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-stone-200'
-          }`}
-        >
-          {option.label}
-        </button>
-      ))}
-    </nav>
-  )
 }
 
 function SportFilterNav({
@@ -107,21 +71,23 @@ function isGameFavorite(game: Game, favorites: string[]): boolean {
   return favorites.includes(game.awayTeam) || favorites.includes(game.homeTeam)
 }
 
-/**
- * Get the start of day (midnight) in local timezone
- */
-function getLocalDateStart(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate())
-}
+type DayBucket = 'yesterday' | 'today' | 'tomorrow' | 'other'
 
-/**
- * Get the calendar day difference between two dates in local timezone
- */
-function getCalendarDayDiff(date: Date, reference: Date): number {
-  const dateStart = getLocalDateStart(date)
-  const refStart = getLocalDateStart(reference)
-  const msPerDay = 24 * 60 * 60 * 1000
-  return Math.round((dateStart.getTime() - refStart.getTime()) / msPerDay)
+function getGameDayBucket(game: Game): DayBucket {
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000)
+  const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000)
+  const dayAfterTomorrow = new Date(today.getTime() + 2 * 24 * 60 * 60 * 1000)
+
+  const gameDate = game.status === 'completed' ? game.completedAt : game.scheduledTime
+  if (!gameDate) return 'other'
+
+  const date = new Date(gameDate)
+  if (date >= yesterday && date < today) return 'yesterday'
+  if (date >= today && date < tomorrow) return 'today'
+  if (date >= tomorrow && date < dayAfterTomorrow) return 'tomorrow'
+  return 'other'
 }
 
 function formatLastUpdated(date: Date): string {
@@ -137,78 +103,62 @@ function formatLastUpdated(date: Date): string {
   return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`
 }
 
-function filterCompletedByDay(games: Game[], filter: DayFilter): Game[] {
-  const now = new Date()
-
-  return games.filter((game) => {
-    if (game.status !== 'completed' || !game.completedAt) return false
-    const completedAt = new Date(game.completedAt)
-    const dayDiff = getCalendarDayDiff(completedAt, now)
-
-    switch (filter) {
-      case 'today':
-        return dayDiff === 0
-      case 'yesterday':
-        return dayDiff === -1
-      case 'last-7-days':
-        return dayDiff >= -7 && dayDiff <= 0
-      default:
-        return true
-    }
-  })
-}
-
-/**
- * Filter upcoming games to only include those within the next N days
- */
-function filterUpcomingByDaysAhead(games: Game[], daysAhead: number): Game[] {
-  const now = new Date()
-
-  return games.filter((game) => {
-    if (game.status !== 'upcoming' || !game.scheduledTime) return false
-    const scheduledTime = new Date(game.scheduledTime)
-    const dayDiff = getCalendarDayDiff(scheduledTime, now)
-
-    return dayDiff >= 0 && dayDiff <= daysAhead
-  })
-}
-
 export default function GameList({ initialGames, initialFavorites, lastScoresUpdate, isLoggedIn }: GameListProps) {
-  const [selectedFilter, setSelectedFilter] = useState<DayFilter>('last-7-days')
-  const [selectedSport, setSelectedSport] = useState<SportFilter>('all')
   const [showScores, setShowScores] = useState(false)
+  const [selectedSport, setSelectedSport] = useState<SportFilter>('all')
+  const { theme, setTheme } = useTheme()
 
-  const { favoriteGames, otherGames } = useMemo(() => {
-    // First filter by sport
-    const sportFilteredGames = selectedSport === 'all'
-      ? initialGames
-      : initialGames.filter((g) => g.league === selectedSport)
+  const { favoriteGames, favoritePreviousGames, yesterdayGames, todayGames, tomorrowGames } = useMemo(() => {
+    // Split into favorites and others (favorites are NOT filtered by sport)
+    const allFavorites = initialGames.filter((g) => isGameFavorite(g, initialFavorites))
+    const allOthers = initialGames.filter((g) => !isGameFavorite(g, initialFavorites))
 
-    // Get live games (always shown)
-    const liveGames = sportFilteredGames.filter((g) => g.status === 'live')
+    // For logged-in users, find the most recent completed game for each favorite team
+    const previousGames: Game[] = []
+    if (isLoggedIn && initialFavorites.length > 0) {
+      const completedFavorites = allFavorites
+        .filter((g) => g.status === 'completed' && g.completedAt)
+        .sort((a, b) => new Date(b.completedAt!).getTime() - new Date(a.completedAt!).getTime())
 
-    // Get upcoming games - NFL shows full week ahead
-    const upcomingGames = selectedSport === 'NFL'
-      ? filterUpcomingByDaysAhead(sportFilteredGames, 7)
-      : sportFilteredGames.filter((g) => g.status === 'upcoming')
+      // Get the most recent completed game for each favorite team
+      const seenTeams = new Set<string>()
+      for (const game of completedFavorites) {
+        const matchingTeams = initialFavorites.filter(
+          (team) => game.awayTeam === team || game.homeTeam === team
+        )
+        for (const team of matchingTeams) {
+          if (!seenTeams.has(team)) {
+            seenTeams.add(team)
+            if (!previousGames.some((g) => g.id === game.id)) {
+              previousGames.push(game)
+            }
+          }
+        }
+      }
+    }
 
-    // Get completed games filtered by day
-    // NFL shows all games within the week regardless of day filter
-    const effectiveDayFilter = selectedSport === 'NFL' ? 'last-7-days' : selectedFilter
-    const filteredCompletedGames = filterCompletedByDay(sportFilteredGames, effectiveDayFilter)
+    // Exclude previous games from the main favorites list to avoid duplicates
+    const previousGameIds = new Set(previousGames.map((g) => g.id))
+    const currentFavorites = allFavorites.filter((g) => !previousGameIds.has(g.id))
 
-    // Combine all games for display
-    const allGamesForDisplay = [...filteredCompletedGames, ...liveGames, ...upcomingGames]
+    // Apply sport filter only to the Games section
+    const sportFilteredOthers = selectedSport === 'all'
+      ? allOthers
+      : allOthers.filter((g) => g.league === selectedSport)
 
-    // Split into favorites and others
-    const favorites = allGamesForDisplay.filter((g) => isGameFavorite(g, initialFavorites))
-    const others = allGamesForDisplay.filter((g) => !isGameFavorite(g, initialFavorites))
+    // Categorize other games by day
+    const yesterday = sortByPriority(sportFilteredOthers.filter((g) => getGameDayBucket(g) === 'yesterday'))
+    const today = sortByPriority(sportFilteredOthers.filter((g) => getGameDayBucket(g) === 'today'))
+    const tomorrow = sortByPriority(sportFilteredOthers.filter((g) => getGameDayBucket(g) === 'tomorrow'))
 
     return {
-      favoriteGames: orderByStatus(favorites),
-      otherGames: orderByStatus(others),
+      favoriteGames: orderByStatus(currentFavorites),
+      favoritePreviousGames: previousGames,
+      yesterdayGames: yesterday,
+      todayGames: today,
+      tomorrowGames: tomorrow,
     }
-  }, [initialGames, initialFavorites, selectedFilter, selectedSport])
+  }, [initialGames, initialFavorites, isLoggedIn, selectedSport])
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -216,9 +166,9 @@ export default function GameList({ initialGames, initialFavorites, lastScoresUpd
       <header className="bg-white border-b border-stone-200 sticky top-0 z-10 dark:bg-stone-800 dark:border-stone-700">
         <div className="max-w-2xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <h1 className="text-xl font-semibold text-stone-900 dark:text-stone-100">SpoilSport</h1>
+            <img src="/spoilsport-logo.svg" alt="SpoilSport" className="h-5 dark:invert" />
             <div className="flex items-center gap-4">
-              <label className="flex items-center gap-2 cursor-pointer">
+              <label className="flex items-center gap-2 cursor-pointer bg-stone-100 dark:bg-stone-700/50 px-3 py-1.5 rounded-lg">
                 <span className="text-sm text-stone-500 dark:text-stone-400">Scores</span>
                 <button
                   role="switch"
@@ -243,13 +193,6 @@ export default function GameList({ initialGames, initialFavorites, lastScoresUpd
               </Link>
             </div>
           </div>
-
-          {/* Day Filter - Desktop only */}
-          <DayFilterNav
-            selectedFilter={selectedFilter}
-            onFilterChange={setSelectedFilter}
-            className="mt-4 hidden sm:flex"
-          />
         </div>
       </header>
 
@@ -257,76 +200,131 @@ export default function GameList({ initialGames, initialFavorites, lastScoresUpd
       <main className="flex-1 min-w-0">
         <div className="max-w-2xl mx-auto px-4 py-6">
           <div className="space-y-8">
-            {/* Your Teams Section */}
-            {favoriteGames.length > 0 && (
-              <section>
-                <h2 className="text-sm font-medium text-stone-600 dark:text-stone-400 uppercase tracking-wide mb-3">
-                  Your Teams
-                </h2>
-                <div className="space-y-2">
-                  {favoriteGames.map((game) => (
-                    <GameCard key={game.id} game={game} isFavorite showScores={showScores} />
-                  ))}
+              {/* Your Teams Section */}
+              {(favoriteGames.length > 0 || favoritePreviousGames.length > 0) && (
+                <section>
+                  <h2 className="text-sm font-medium text-stone-600 dark:text-stone-400 uppercase tracking-wide mb-3">
+                    Your Teams
+                  </h2>
+                  <div className="space-y-2">
+                    {favoriteGames.map((game) => (
+                      <GameCard key={game.id} game={game} favoriteTeams={initialFavorites} showScores={showScores} />
+                    ))}
+                  </div>
+
+                  {/* Previous Games for favorite teams */}
+                  {favoritePreviousGames.length > 0 && (
+                    <div className="mt-4">
+                      <h3 className="text-xs font-medium text-stone-400 dark:text-stone-500 uppercase tracking-wide mb-2">
+                        Last Game
+                      </h3>
+                      <div className="space-y-2">
+                        {favoritePreviousGames.map((game) => (
+                          <GameCard key={game.id} game={game} favoriteTeams={initialFavorites} showScores={showScores} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </section>
+              )}
+
+              {/* Sign in callout for non-logged in users */}
+              {!isLoggedIn && (
+                <div className="bg-stone-100 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-lg p-4">
+                  <p className="text-sm text-stone-600 dark:text-stone-300">
+                    <Link
+                      href="/auth/sign-in"
+                      className="font-medium text-stone-900 dark:text-stone-100 hover:underline"
+                    >
+                      Sign in
+                    </Link>
+                    {' '}or{' '}
+                    <Link
+                      href="/auth/sign-up"
+                      className="font-medium text-stone-900 dark:text-stone-100 hover:underline"
+                    >
+                      create an account
+                    </Link>
+                    {' '}to save your favorite teams.
+                  </p>
                 </div>
-              </section>
-            )}
+              )}
 
-            {/* Sign in callout for non-logged in users */}
-            {!isLoggedIn && (
-              <div className="bg-stone-100 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-lg p-4">
-                <p className="text-sm text-stone-600 dark:text-stone-300">
-                  <Link
-                    href="/auth/sign-in"
-                    className="font-medium text-stone-900 dark:text-stone-100 hover:underline"
-                  >
-                    Sign in
-                  </Link>
-                  {' '}or{' '}
-                  <Link
-                    href="/auth/sign-up"
-                    className="font-medium text-stone-900 dark:text-stone-100 hover:underline"
-                  >
-                    create an account
-                  </Link>
-                  {' '}to save your favorite teams.
-                </p>
-              </div>
-            )}
-
-            {/* Other Games Section */}
-            <section>
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="text-sm font-medium text-stone-600 dark:text-stone-400 uppercase tracking-wide">
-                  Other Games
-                </h2>
+              {/* Games Section */}
+              <section>
                 <SportFilterNav
                   selectedFilter={selectedSport}
                   onFilterChange={setSelectedSport}
+                  className="mb-3"
                 />
-              </div>
-              {otherGames.length > 0 ? (
-                <div className="space-y-2">
-                  {otherGames.map((game) => (
-                    <GameCard key={game.id} game={game} showScores={showScores} />
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-stone-500 dark:text-stone-400 py-4 text-center">
-                  No {selectedSport === 'all' ? '' : selectedSport + ' '}games found.
-                </p>
-              )}
-            </section>
-          </div>
+
+                {(yesterdayGames.length > 0 || todayGames.length > 0 || tomorrowGames.length > 0) ? (
+                  <>
+                    {yesterdayGames.length > 0 && (
+                      <div>
+                        <h3 className="text-xs font-medium text-stone-400 dark:text-stone-500 uppercase tracking-wide mb-2">
+                          Yesterday
+                        </h3>
+                        <div className="space-y-2">
+                          {yesterdayGames.map((game) => (
+                            <GameCard key={game.id} game={game} showScores={showScores} />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {todayGames.length > 0 && (
+                      <div className={yesterdayGames.length > 0 ? 'mt-4' : ''}>
+                        <h3 className="text-xs font-medium text-stone-400 dark:text-stone-500 uppercase tracking-wide mb-2">
+                          Today
+                        </h3>
+                        <div className="space-y-2">
+                          {todayGames.map((game) => (
+                            <GameCard key={game.id} game={game} showScores={showScores} />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {tomorrowGames.length > 0 && (
+                      <div className={(yesterdayGames.length > 0 || todayGames.length > 0) ? 'mt-4' : ''}>
+                        <h3 className="text-xs font-medium text-stone-400 dark:text-stone-500 uppercase tracking-wide mb-2">
+                          Tomorrow
+                        </h3>
+                        <div className="space-y-2">
+                          {tomorrowGames.map((game) => (
+                            <GameCard key={game.id} game={game} showScores={showScores} />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-sm text-stone-500 dark:text-stone-400 py-4 text-center">
+                    No {selectedSport === 'all' ? '' : selectedSport + ' '}games found.
+                  </p>
+                )}
+              </section>
+            </div>
         </div>
       </main>
 
       {/* Footer */}
       <footer className="border-t border-stone-200 dark:border-stone-700 mt-auto">
-        <div className="max-w-2xl mx-auto px-4 py-4">
-          <p className="text-sm text-stone-500 dark:text-stone-400 text-center">
+        <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
+          <p className="text-sm text-stone-500 dark:text-stone-400">
             Scores last updated:{' '}
             {lastScoresUpdate ? formatLastUpdated(new Date(lastScoresUpdate)) : 'Unknown'}
           </p>
+          <select
+            value={theme}
+            onChange={(e) => setTheme(e.target.value as 'light' | 'dark' | 'system')}
+            className="text-xs bg-white dark:bg-stone-800 text-stone-500 dark:text-stone-400 border border-stone-300 dark:border-stone-600 rounded px-2 py-1 cursor-pointer hover:border-stone-400 dark:hover:border-stone-500"
+          >
+            <option value="system">System</option>
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+          </select>
         </div>
       </footer>
     </div>

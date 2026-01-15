@@ -4,9 +4,6 @@ import type { GameWithDetails } from '@/db/queries'
 import type { Priority, GameStatus } from '@/app/components/GameCard'
 import { getCurrentUserOrNull, ensureUserInDatabase } from '@/lib/auth'
 
-// Re-export types for client use
-export type { GameWithDetails }
-
 // Check if database is configured
 function isDatabaseConfigured(): boolean {
   return !!process.env.DATABASE_URL

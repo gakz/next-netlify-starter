@@ -3,8 +3,29 @@ import { Providers } from './providers'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'SpoilSport',
-  description: 'Spoiler-free sports watchability guide',
+  title: {
+    default: 'SpoilSport - Spoiler-Free Sports Ratings',
+    template: '%s | SpoilSport',
+  },
+  description: 'Find out which games are worth watching without spoilers. SpoilSport rates games so you can skip the blowouts and catch the thrillers.',
+  keywords: ['sports', 'NBA', 'NFL', 'game ratings', 'spoiler-free', 'watchability'],
+  authors: [{ name: 'SpoilSport' }],
+  openGraph: {
+    title: 'SpoilSport - Spoiler-Free Sports Ratings',
+    description: 'Find out which games are worth watching without spoilers. Skip the blowouts, catch the thrillers.',
+    type: 'website',
+    locale: 'en_US',
+    siteName: 'SpoilSport',
+  },
+  twitter: {
+    card: 'summary',
+    title: 'SpoilSport - Spoiler-Free Sports Ratings',
+    description: 'Find out which games are worth watching without spoilers. Skip the blowouts, catch the thrillers.',
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 }
 
 export default function RootLayout({

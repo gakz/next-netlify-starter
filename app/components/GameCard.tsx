@@ -1,5 +1,7 @@
 'use client'
 
+import { useTheme } from '../ThemeProvider'
+
 export type Priority = 'low' | 'medium' | 'high'
 export type GameStatus = 'upcoming' | 'live' | 'completed'
 
@@ -27,7 +29,7 @@ export interface Game {
 
 export interface GameCardProps {
   game: Game
-  isFavorite?: boolean
+  favoriteTeams?: string[]
   showScores?: boolean
 }
 
@@ -46,6 +48,38 @@ const multiWordCities = [
   'St. Louis',
   'Tampa Bay',
 ]
+
+// Heavily desaturated team colors for subtle accents (HSL: low saturation, high lightness)
+// Only used for favorite team indicators
+const teamColors: Record<string, { light: string; dark: string }> = {
+  // NBA Teams
+  'Boston Celtics': { light: '#a8c4a8', dark: '#4a6b4a' },
+  'Los Angeles Lakers': { light: '#c9b8d4', dark: '#6b5a7a' },
+  'Golden State Warriors': { light: '#c4ccd4', dark: '#5a6a7a' },
+  'Miami Heat': { light: '#d4a8a8', dark: '#7a4a4a' },
+  'Philadelphia 76ers': { light: '#a8b8d4', dark: '#4a5a7a' },
+  'Denver Nuggets': { light: '#c4c8d4', dark: '#5a5e7a' },
+  'Phoenix Suns': { light: '#d4c4b8', dark: '#7a6a5a' },
+  'Milwaukee Bucks': { light: '#a8c4a8', dark: '#4a6b4a' },
+  'Cleveland Cavaliers': { light: '#d4b8a8', dark: '#7a5a4a' },
+  'Dallas Mavericks': { light: '#a8b8c4', dark: '#4a5a6b' },
+  // MLB Teams
+  'New York Yankees': { light: '#b8c4d4', dark: '#5a6a7a' },
+  'Boston Red Sox': { light: '#d4a8a8', dark: '#7a4a4a' },
+  'Los Angeles Dodgers': { light: '#a8b8d4', dark: '#4a5a7a' },
+  'San Francisco Giants': { light: '#d4b8a8', dark: '#7a5a4a' },
+  'Toronto Blue Jays': { light: '#a8b8c4', dark: '#4a5a6b' },
+  'Chicago Cubs': { light: '#a8b8d4', dark: '#4a5a7a' },
+  'St. Louis Cardinals': { light: '#d4a8a8', dark: '#7a4a4a' },
+  'Atlanta Braves': { light: '#d4a8a8', dark: '#7a4a4a' },
+}
+
+// Default muted color for teams not in the mapping
+const defaultTeamColor = { light: '#c4c4c4', dark: '#5a5a5a' }
+
+function getTeamColor(teamName: string): { light: string; dark: string } {
+  return teamColors[teamName] || defaultTeamColor
+}
 
 /**
  * Extract team nickname from full team name
@@ -220,8 +254,7 @@ function formatRelativeDate(date: Date | null): string {
 
   const dayDiff = getCalendarDayDiff(date)
 
-  if (dayDiff === 0) return 'Today'
-  if (dayDiff === -1) return 'Yesterday'
+  if (dayDiff === 0 || dayDiff === -1) return ''
   if (dayDiff > -7) return `${Math.abs(dayDiff)} days ago`
   return date.toLocaleDateString()
 }
@@ -232,9 +265,7 @@ function formatScheduledTime(date: Date | null): string {
   const dayDiff = getCalendarDayDiff(date)
   const timeStr = date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
 
-  if (dayDiff === 0) return `Today, ${timeStr}`
-  if (dayDiff === 1) return `Tomorrow, ${timeStr}`
-  if (dayDiff === -1) return `Yesterday, ${timeStr}`
+  if (dayDiff === 0 || dayDiff === 1 || dayDiff === -1) return timeStr
   return `${date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}, ${timeStr}`
 }
 
@@ -355,7 +386,8 @@ function RatingBadge({
   )
 }
 
-export default function GameCard({ game, isFavorite = false, showScores = false }: GameCardProps) {
+export default function GameCard({ game, favoriteTeams = [], showScores = false }: GameCardProps) {
+  const { resolvedTheme } = useTheme()
   const isCompleted = game.status === 'completed'
   const isLive = game.status === 'live'
   const isUpcoming = game.status === 'upcoming'
@@ -367,6 +399,16 @@ export default function GameCard({ game, isFavorite = false, showScores = false 
     game.awayTeamRecord,
     game.homeTeamRecord
   )
+
+  // Determine which team is the user's favorite
+  const awayIsFavorite = favoriteTeams.includes(game.awayTeam)
+  const homeIsFavorite = favoriteTeams.includes(game.homeTeam)
+  const hasFavorite = awayIsFavorite || homeIsFavorite
+
+  // Get the favorite team's color (prefer away if both are favorites)
+  const favoriteTeam = awayIsFavorite ? game.awayTeam : game.homeTeam
+  const favoriteTeamColor = getTeamColor(favoriteTeam)
+  const colorVariant = resolvedTheme === 'dark' ? 'dark' : 'light'
 
   return (
     <div
@@ -382,11 +424,25 @@ export default function GameCard({ game, isFavorite = false, showScores = false 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <h3
-            className={`text-base text-stone-900 dark:text-stone-100 truncate ${
-              isFavorite ? 'font-semibold' : 'font-medium'
+            className={`text-base text-stone-900 dark:text-stone-100 truncate flex items-center gap-1.5 ${
+              hasFavorite ? 'font-semibold' : 'font-medium'
             }`}
           >
-            {getTeamNickname(game.awayTeam)} vs {getTeamNickname(game.homeTeam)}
+            {awayIsFavorite && (
+              <span
+                className="w-2 h-2 rounded-full opacity-80 flex-shrink-0"
+                style={{ backgroundColor: favoriteTeamColor[colorVariant] }}
+              />
+            )}
+            <span>
+              {getTeamNickname(game.awayTeam)} vs {getTeamNickname(game.homeTeam)}
+            </span>
+            {homeIsFavorite && !awayIsFavorite && (
+              <span
+                className="w-2 h-2 rounded-full opacity-80 flex-shrink-0"
+                style={{ backgroundColor: favoriteTeamColor[colorVariant] }}
+              />
+            )}
           </h3>
         </div>
         <div className="flex items-center gap-3 mt-0.5">
@@ -420,7 +476,7 @@ export default function GameCard({ game, isFavorite = false, showScores = false 
       <RatingBadge
         score={watchabilityScore}
         isLive={isLive}
-        isFavorite={isFavorite}
+        isFavorite={hasFavorite}
       />
     </div>
   )
