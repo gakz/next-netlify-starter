@@ -123,6 +123,9 @@ export default function GameCard({ game, isFavorite = false, showScores = false 
   const hasScores = game.awayScore !== null && game.homeScore !== null
   const watchabilityScore = getWatchabilityScore(game.priority, game.status)
 
+  // Game status badge text
+  const statusText = isCompleted ? 'Final' : isLive ? 'Live' : null
+
   return (
     <div
       className={`
@@ -142,10 +145,8 @@ export default function GameCard({ game, isFavorite = false, showScores = false 
             {game.awayTeam} vs {game.homeTeam}
           </h3>
           <p className="text-sm text-stone-500 mt-1 dark:text-stone-400">
-            {isCompleted && (
-              <>Completed &bull; {formatRelativeDate(game.completedAt)}</>
-            )}
-            {isLive && 'In progress'}
+            {isCompleted && formatRelativeDate(game.completedAt)}
+            {isLive && formatScheduledTime(game.scheduledTime)}
             {isUpcoming && formatScheduledTime(game.scheduledTime)}
           </p>
         </div>
@@ -155,8 +156,16 @@ export default function GameCard({ game, isFavorite = false, showScores = false 
               {game.awayScore} - {game.homeScore}
             </span>
           )}
-          {isLive && (
-            <span className="text-sm text-stone-600 dark:text-stone-300">Live</span>
+          {statusText && (
+            <span
+              className={`text-xs font-semibold px-2 py-0.5 rounded ${
+                isLive
+                  ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                  : 'bg-stone-100 text-stone-600 dark:bg-stone-700 dark:text-stone-300'
+              }`}
+            >
+              {statusText}
+            </span>
           )}
           <span className="text-sm font-medium text-stone-500 dark:text-stone-400">
             {formatScore(watchabilityScore)}
