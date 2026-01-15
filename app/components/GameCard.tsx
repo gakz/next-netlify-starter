@@ -21,12 +21,6 @@ export interface GameCardProps {
   showScores?: boolean
 }
 
-const priorityLabels: Record<Priority, string> = {
-  low: 'Low priority',
-  medium: 'Medium priority',
-  high: 'High priority',
-}
-
 // Left border intensity by priority (neutral slate)
 const priorityBorderStyles: Record<Priority, string> = {
   high: 'border-l-[3px] border-l-slate-500 dark:border-l-slate-400',
@@ -41,11 +35,44 @@ const priorityCardStyles: Record<Priority, string> = {
   low: 'py-3 opacity-85',
 }
 
-// Priority text styling (de-emphasized)
-const priorityTextStyles: Record<Priority, string> = {
-  high: 'text-xs text-stone-400 dark:text-stone-500',
-  medium: 'text-xs text-stone-400 dark:text-stone-500',
-  low: 'text-xs text-stone-300 dark:text-stone-600',
+/**
+ * Calculate watchability score (1-10 displayed, but constrained to ~3-9)
+ * State-based caps:
+ * - Upcoming: max 6
+ * - Completed: max 8 (avoid 9+)
+ * - Live: full range
+ */
+function getWatchabilityScore(priority: Priority, status: GameStatus): number {
+  // Base scores by priority
+  const baseScores: Record<Priority, Record<GameStatus, number>> = {
+    high: {
+      upcoming: 6,
+      live: 8.5,
+      completed: 8,
+    },
+    medium: {
+      upcoming: 5,
+      live: 7,
+      completed: 6.5,
+    },
+    low: {
+      upcoming: 4,
+      live: 5,
+      completed: 4,
+    },
+  }
+
+  return baseScores[priority][status]
+}
+
+/**
+ * Format score for display (only .0 or .5 decimals)
+ */
+function formatScore(score: number): string {
+  if (score % 1 === 0) {
+    return score.toString()
+  }
+  return score.toFixed(1)
 }
 
 /**
@@ -94,6 +121,7 @@ export default function GameCard({ game, isFavorite = false, showScores = false 
   const isLive = game.status === 'live'
   const isUpcoming = game.status === 'upcoming'
   const hasScores = game.awayScore !== null && game.homeScore !== null
+  const watchabilityScore = getWatchabilityScore(game.priority, game.status)
 
   return (
     <div
@@ -130,11 +158,8 @@ export default function GameCard({ game, isFavorite = false, showScores = false 
           {isLive && (
             <span className="text-sm text-stone-600 dark:text-stone-300">Live</span>
           )}
-          {isUpcoming && (
-            <span className="text-sm text-stone-400 dark:text-stone-500">Upcoming</span>
-          )}
-          <span className={priorityTextStyles[game.priority]}>
-            {priorityLabels[game.priority]}
+          <span className="text-sm font-medium text-stone-500 dark:text-stone-400">
+            {formatScore(watchabilityScore)}
           </span>
         </div>
       </div>
