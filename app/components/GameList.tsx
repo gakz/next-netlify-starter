@@ -133,7 +133,7 @@ export default function GameList({ initialGames, initialFavorites }: GameListPro
   const hasGames = favoriteGames.length > 0 || otherGames.length > 0
 
   return (
-    <div className="min-h-screen pb-20 sm:pb-0">
+    <div className="min-h-screen">
       {/* Header */}
       <header className="bg-white border-b border-stone-200 sticky top-0 z-10 dark:bg-stone-800 dark:border-stone-700">
         <div className="max-w-2xl mx-auto px-4 py-4">
@@ -194,16 +194,6 @@ export default function GameList({ initialGames, initialFavorites }: GameListPro
           </div>
         )}
       </main>
-
-      {/* Fixed Footer Navigation - Mobile only */}
-      <footer className="fixed bottom-0 left-0 right-0 bg-white border-t border-stone-200 sm:hidden dark:bg-stone-800 dark:border-stone-700">
-        <div className="max-w-2xl mx-auto px-4 py-3">
-          <DayFilterNav
-            selectedFilter={selectedFilter}
-            onFilterChange={setSelectedFilter}
-          />
-        </div>
-      </footer>
     </div>
   )
 }
