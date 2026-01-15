@@ -68,23 +68,38 @@ function isGameFavorite(game: Game, favorites: string[]): boolean {
   return favorites.includes(game.awayTeam) || favorites.includes(game.homeTeam)
 }
 
+/**
+ * Get the start of day (midnight) in local timezone
+ */
+function getLocalDateStart(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate())
+}
+
+/**
+ * Get the calendar day difference between two dates in local timezone
+ */
+function getCalendarDayDiff(date: Date, reference: Date): number {
+  const dateStart = getLocalDateStart(date)
+  const refStart = getLocalDateStart(reference)
+  const msPerDay = 24 * 60 * 60 * 1000
+  return Math.round((dateStart.getTime() - refStart.getTime()) / msPerDay)
+}
+
 function filterCompletedByDay(games: Game[], filter: DayFilter): Game[] {
   const now = new Date()
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  const startOfYesterday = new Date(startOfToday.getTime() - 24 * 60 * 60 * 1000)
-  const startOfWeek = new Date(startOfToday.getTime() - 7 * 24 * 60 * 60 * 1000)
 
   return games.filter((game) => {
     if (game.status !== 'completed' || !game.completedAt) return false
     const completedAt = new Date(game.completedAt)
+    const dayDiff = getCalendarDayDiff(completedAt, now)
 
     switch (filter) {
       case 'today':
-        return completedAt >= startOfToday
+        return dayDiff === 0
       case 'yesterday':
-        return completedAt >= startOfYesterday && completedAt < startOfToday
+        return dayDiff === -1
       case 'last-7-days':
-        return completedAt >= startOfWeek
+        return dayDiff >= -7 && dayDiff <= 0
       default:
         return true
     }

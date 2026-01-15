@@ -45,31 +45,45 @@ const priorityTextStyles: Record<Priority, string> = {
   low: 'text-xs text-stone-300 dark:text-stone-600',
 }
 
+/**
+ * Get the start of day (midnight) in local timezone for a given date
+ */
+function getLocalDateStart(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate())
+}
+
+/**
+ * Get the calendar day difference between two dates in local timezone
+ * Positive = date is in the future, Negative = date is in the past
+ */
+function getCalendarDayDiff(date: Date, reference: Date = new Date()): number {
+  const dateStart = getLocalDateStart(date)
+  const refStart = getLocalDateStart(reference)
+  const msPerDay = 24 * 60 * 60 * 1000
+  return Math.round((dateStart.getTime() - refStart.getTime()) / msPerDay)
+}
+
 function formatRelativeDate(date: Date | null): string {
   if (!date) return ''
 
-  const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+  const dayDiff = getCalendarDayDiff(date)
 
-  if (diffDays === 0) return 'Today'
-  if (diffDays === 1) return 'Yesterday'
-  if (diffDays < 7) return `${diffDays} days ago`
+  if (dayDiff === 0) return 'Today'
+  if (dayDiff === -1) return 'Yesterday'
+  if (dayDiff > -7) return `${Math.abs(dayDiff)} days ago`
   return date.toLocaleDateString()
 }
 
 function formatScheduledTime(date: Date | null): string {
   if (!date) return ''
 
-  const now = new Date()
-  const diffMs = date.getTime() - now.getTime()
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-
+  const dayDiff = getCalendarDayDiff(date)
   const timeStr = date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
 
-  if (diffDays === 0) return `Today, ${timeStr}`
-  if (diffDays === 1) return `Tomorrow, ${timeStr}`
-  return `${date.toLocaleDateString([], { weekday: 'short' })}, ${timeStr}`
+  if (dayDiff === 0) return `Today, ${timeStr}`
+  if (dayDiff === 1) return `Tomorrow, ${timeStr}`
+  if (dayDiff === -1) return `Yesterday, ${timeStr}`
+  return `${date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}, ${timeStr}`
 }
 
 export default function GameCard({ game, isFavorite = false }: GameCardProps) {
