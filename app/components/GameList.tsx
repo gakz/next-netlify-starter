@@ -189,8 +189,6 @@ export default function GameList({ initialGames, initialFavorites, lastScoresUpd
     }
   }, [initialGames, initialFavorites, selectedFilter, selectedSport])
 
-  const hasGames = favoriteGames.length > 0 || otherGames.length > 0
-
   return (
     <div className="min-h-screen flex flex-col">
       {/* Header */}
@@ -237,11 +235,6 @@ export default function GameList({ initialGames, initialFavorites, lastScoresUpd
       {/* Main Content */}
       <main className="flex-1 min-w-0">
         <div className="max-w-2xl mx-auto px-4 py-6">
-        {!hasGames ? (
-          <div className="text-center py-12">
-            <p className="text-stone-500 dark:text-stone-400">No games found.</p>
-          </div>
-        ) : (
           <div className="space-y-8">
             {/* Your Teams Section */}
             {favoriteGames.length > 0 && (
@@ -303,7 +296,6 @@ export default function GameList({ initialGames, initialFavorites, lastScoresUpd
               )}
             </section>
           </div>
-        )}
         </div>
       </main>
 
