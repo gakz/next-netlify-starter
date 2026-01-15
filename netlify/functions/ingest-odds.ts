@@ -90,14 +90,14 @@ async function ingestSport(
       try {
         // Try to match to an existing game
         const gameId = await matchGameId(db, expectation)
+        console.log(`[DEBUG] Event ${expectation.externalEventId}: gameId=${gameId}, type=${typeof gameId}`)
+
         if (gameId) {
           result.gamesMatched++
         }
 
-        // Insert the expectation (always insert new records to track history)
-        // Only include gameId when it has a value - omitting it entirely lets PostgreSQL use NULL
-        // (passing undefined causes Drizzle to emit 'default' which fails since there's no default)
-        await db.insert(gameExpectations).values({
+        // Build values object, only including gameId when it has a value
+        const insertValues = {
           ...(gameId ? { gameId } : {}),
           sportKey: expectation.sportKey,
           externalEventId: expectation.externalEventId,
@@ -112,10 +112,18 @@ async function ingestSport(
           bookmaker: expectation.bookmaker,
           source: 'the-odds-api',
           capturedAt: new Date(),
-        })
+        }
+        console.log(`[DEBUG] Insert values keys: ${Object.keys(insertValues).join(', ')}`)
+        console.log(`[DEBUG] gameId in values: ${'gameId' in insertValues}`)
+
+        // Insert the expectation (always insert new records to track history)
+        await db.insert(gameExpectations).values(insertValues)
 
         result.expectationsWritten++
+        console.log(`[DEBUG] Successfully inserted event ${expectation.externalEventId}`)
       } catch (err) {
+        // Log detailed error information
+        console.error(`[DEBUG] Insert error for ${expectation.externalEventId}:`, err)
         const message =
           err instanceof Error ? err.message : 'Unknown error inserting expectation'
         result.errors.push(`Event ${expectation.externalEventId}: ${message}`)
