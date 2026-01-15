@@ -1,7 +1,7 @@
 import type { Config, Context } from '@netlify/functions'
 import { neon } from '@neondatabase/serverless'
 import { drizzle } from 'drizzle-orm/neon-http'
-import { eq, and, gte, lte } from 'drizzle-orm'
+import { eq, and, gte, lte, or } from 'drizzle-orm'
 import { gameExpectations, games, teams, gameStateSnapshots } from '../../db/schema'
 import {
   createOddsClient,
@@ -11,7 +11,7 @@ import {
   type ScoreEvent,
 } from '../../lib/odds-api'
 
-// Ingestion interval: every 15 minutes
+// Ingestion runs every 5 minutes, but conditionally fetches based on game activity
 
 interface IngestionResult {
   sportKey: string
@@ -21,6 +21,65 @@ interface IngestionResult {
   teamsCreated: number
   scoresUpdated: number
   errors: string[]
+}
+
+interface GameActivityStatus {
+  hasLiveGames: boolean
+  hasGamesStartingSoon: boolean
+  liveGameCount: number
+  upcomingWithinHour: number
+}
+
+/**
+ * Check if there are live games or games starting soon
+ * This helps us decide whether to fetch scores (costs API calls)
+ */
+async function checkGameActivity(
+  db: ReturnType<typeof drizzle>
+): Promise<GameActivityStatus> {
+  const now = new Date()
+  const oneHourFromNow = new Date(now.getTime() + 60 * 60 * 1000)
+  const threeHoursAgo = new Date(now.getTime() - 3 * 60 * 60 * 1000)
+
+  // Find games that are marked as live
+  const liveGames = await db
+    .select()
+    .from(games)
+    .where(eq(games.status, 'live'))
+
+  // Find games that should be live (started within last 3 hours, not completed)
+  // This catches games that haven't been updated to 'live' status yet
+  const potentiallyLiveGames = await db
+    .select()
+    .from(games)
+    .where(
+      and(
+        eq(games.status, 'upcoming'),
+        lte(games.scheduledTime, now),
+        gte(games.scheduledTime, threeHoursAgo)
+      )
+    )
+
+  // Find games starting within the next hour
+  const upcomingSoonGames = await db
+    .select()
+    .from(games)
+    .where(
+      and(
+        eq(games.status, 'upcoming'),
+        gte(games.scheduledTime, now),
+        lte(games.scheduledTime, oneHourFromNow)
+      )
+    )
+
+  const totalLive = liveGames.length + potentiallyLiveGames.length
+
+  return {
+    hasLiveGames: totalLive > 0,
+    hasGamesStartingSoon: upcomingSoonGames.length > 0,
+    liveGameCount: totalLive,
+    upcomingWithinHour: upcomingSoonGames.length,
+  }
 }
 
 /**
@@ -221,10 +280,12 @@ async function processScores(
 
 /**
  * Ingest odds for a single sport
+ * @param fetchScores - Whether to also fetch live scores (costs additional API call)
  */
 async function ingestSport(
   db: ReturnType<typeof drizzle>,
-  sportConfig: (typeof SUPPORTED_SPORTS)[number]
+  sportConfig: (typeof SUPPORTED_SPORTS)[number],
+  fetchScores: boolean = true
 ): Promise<IngestionResult> {
   const result: IngestionResult = {
     sportKey: sportConfig.key,
@@ -309,20 +370,24 @@ async function ingestSport(
       }
     }
 
-    // Also fetch and process scores
-    try {
-      const { events: scoreEvents, remainingRequests: scoresRemaining } =
-        await client.getScores(sportConfig.key, 1)
-      console.log(
-        `[${sportConfig.key}] Fetched ${scoreEvents.length} score events. API requests remaining: ${scoresRemaining}`
-      )
+    // Fetch and process scores only if requested (saves API calls when no games active)
+    if (fetchScores) {
+      try {
+        const { events: scoreEvents, remainingRequests: scoresRemaining } =
+          await client.getScores(sportConfig.key, 1)
+        console.log(
+          `[${sportConfig.key}] Fetched ${scoreEvents.length} score events. API requests remaining: ${scoresRemaining}`
+        )
 
-      result.scoresUpdated = await processScores(db, sportConfig.key, scoreEvents)
-    } catch (scoreErr) {
-      console.error(`[${sportConfig.key}] Error fetching scores:`, scoreErr)
-      result.errors.push(
-        `Scores fetch error: ${scoreErr instanceof Error ? scoreErr.message : 'Unknown'}`
-      )
+        result.scoresUpdated = await processScores(db, sportConfig.key, scoreEvents)
+      } catch (scoreErr) {
+        console.error(`[${sportConfig.key}] Error fetching scores:`, scoreErr)
+        result.errors.push(
+          `Scores fetch error: ${scoreErr instanceof Error ? scoreErr.message : 'Unknown'}`
+        )
+      }
+    } else {
+      console.log(`[${sportConfig.key}] Skipping scores fetch (no active games)`)
     }
   } catch (err) {
     if (err instanceof OddsAPIError) {
@@ -364,15 +429,45 @@ export default async function handler(req: Request, context: Context) {
   const db = drizzle(sql)
 
   try {
-    console.log('Starting odds ingestion...')
-    console.log(`Configured sports: ${SUPPORTED_SPORTS.map((s) => s.key).join(', ')}`)
+    // Check game activity to determine fetch strategy
+    const activity = await checkGameActivity(db)
+    const shouldFetchScores = activity.hasLiveGames || activity.hasGamesStartingSoon
+
+    // Only fetch odds every 15 minutes when no games are active (3rd run of 5-min cycle)
+    const currentMinute = new Date().getMinutes()
+    const isOddsRefreshTime = currentMinute % 15 < 5 // First 5 minutes of each 15-min window
+    const shouldFetchOdds = shouldFetchScores || isOddsRefreshTime
+
+    console.log('=== Ingestion Status ===')
+    console.log(`Live games: ${activity.liveGameCount}`)
+    console.log(`Games starting within hour: ${activity.upcomingWithinHour}`)
+    console.log(`Fetch strategy: ${shouldFetchScores ? 'ACTIVE (odds + scores)' : shouldFetchOdds ? 'REFRESH (odds only)' : 'SKIP'}`)
+
+    // Skip entirely if no games active and not time for odds refresh
+    if (!shouldFetchOdds) {
+      console.log('No active games and not time for odds refresh. Skipping API calls.')
+      return new Response(
+        JSON.stringify({
+          success: true,
+          skipped: true,
+          reason: 'No active games',
+          activity,
+        }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      )
+    }
+
+    console.log(`\nConfigured sports: ${SUPPORTED_SPORTS.map((s) => s.key).join(', ')}`)
 
     const results: IngestionResult[] = []
 
     // Ingest each configured sport
     for (const sportConfig of SUPPORTED_SPORTS) {
       console.log(`\nProcessing ${sportConfig.name} (${sportConfig.key})...`)
-      const result = await ingestSport(db, sportConfig)
+      const result = await ingestSport(db, sportConfig, shouldFetchScores)
       results.push(result)
 
       // Log sport results
@@ -440,8 +535,11 @@ export default async function handler(req: Request, context: Context) {
   }
 }
 
-// Netlify scheduled function config: runs every 15 minutes
-// Note: schedule must be a static string literal for Netlify to detect it at build time
+// Netlify scheduled function config: runs every 5 minutes
+// Actual API usage is optimized based on game activity:
+// - Live games: fetches odds + scores (2 API calls)
+// - Games starting soon: fetches odds + scores (2 API calls)
+// - No active games: fetches odds only every 15 min (1 API call), skips other runs
 export const config: Config = {
-  schedule: '*/15 * * * *',
+  schedule: '*/5 * * * *',
 }
