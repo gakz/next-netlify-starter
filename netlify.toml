@@ -1,7 +1,14 @@
 [build]
-  command = "npm run build"
+  command = "npm run build:netlify"
   publish = ".next"
 
 [functions]
   directory = "netlify/functions"
   node_bundler = "esbuild"
+
+# Environment variable documentation:
+# DATABASE_URL - Pooled Neon connection (for app runtime)
+# DATABASE_URL_DIRECT - Direct Neon connection (for migrations)
+#
+# In Neon console, use the "Direct" connection string for DATABASE_URL_DIRECT
+# The direct connection is required for DDL operations during migrations

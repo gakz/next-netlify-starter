@@ -68,23 +68,38 @@ function isGameFavorite(game: Game, favorites: string[]): boolean {
   return favorites.includes(game.awayTeam) || favorites.includes(game.homeTeam)
 }
 
+/**
+ * Get the start of day (midnight) in local timezone
+ */
+function getLocalDateStart(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate())
+}
+
+/**
+ * Get the calendar day difference between two dates in local timezone
+ */
+function getCalendarDayDiff(date: Date, reference: Date): number {
+  const dateStart = getLocalDateStart(date)
+  const refStart = getLocalDateStart(reference)
+  const msPerDay = 24 * 60 * 60 * 1000
+  return Math.round((dateStart.getTime() - refStart.getTime()) / msPerDay)
+}
+
 function filterCompletedByDay(games: Game[], filter: DayFilter): Game[] {
   const now = new Date()
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  const startOfYesterday = new Date(startOfToday.getTime() - 24 * 60 * 60 * 1000)
-  const startOfWeek = new Date(startOfToday.getTime() - 7 * 24 * 60 * 60 * 1000)
 
   return games.filter((game) => {
     if (game.status !== 'completed' || !game.completedAt) return false
     const completedAt = new Date(game.completedAt)
+    const dayDiff = getCalendarDayDiff(completedAt, now)
 
     switch (filter) {
       case 'today':
-        return completedAt >= startOfToday
+        return dayDiff === 0
       case 'yesterday':
-        return completedAt >= startOfYesterday && completedAt < startOfToday
+        return dayDiff === -1
       case 'last-7-days':
-        return completedAt >= startOfWeek
+        return dayDiff >= -7 && dayDiff <= 0
       default:
         return true
     }
@@ -93,6 +108,7 @@ function filterCompletedByDay(games: Game[], filter: DayFilter): Game[] {
 
 export default function GameList({ initialGames, initialFavorites }: GameListProps) {
   const [selectedFilter, setSelectedFilter] = useState<DayFilter>('last-7-days')
+  const [showScores, setShowScores] = useState(false)
 
   const { favoriteGames, otherGames } = useMemo(() => {
     // Get live and upcoming games (not filtered by day)
@@ -118,18 +134,37 @@ export default function GameList({ initialGames, initialFavorites }: GameListPro
   const hasGames = favoriteGames.length > 0 || otherGames.length > 0
 
   return (
-    <div className="min-h-screen pb-20 sm:pb-0">
+    <div className="min-h-screen">
       {/* Header */}
       <header className="bg-white border-b border-stone-200 sticky top-0 z-10 dark:bg-stone-800 dark:border-stone-700">
         <div className="max-w-2xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <h1 className="text-xl font-semibold text-stone-900 dark:text-stone-100">SpoilSport</h1>
-            <Link
-              href="/settings"
-              className="text-sm text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200"
-            >
-              Settings
-            </Link>
+            <div className="flex items-center gap-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <span className="text-sm text-stone-500 dark:text-stone-400">Scores</span>
+                <button
+                  role="switch"
+                  aria-checked={showScores}
+                  onClick={() => setShowScores(!showScores)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    showScores ? 'bg-stone-600 dark:bg-stone-500' : 'bg-stone-300 dark:bg-stone-600'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      showScores ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </label>
+              <Link
+                href="/settings"
+                className="text-sm text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200"
+              >
+                Settings
+              </Link>
+            </div>
           </div>
 
           {/* Day Filter - Desktop only */}
@@ -157,7 +192,7 @@ export default function GameList({ initialGames, initialFavorites }: GameListPro
                 </h2>
                 <div className="space-y-2">
                   {favoriteGames.map((game) => (
-                    <GameCard key={game.id} game={game} isFavorite />
+                    <GameCard key={game.id} game={game} isFavorite showScores={showScores} />
                   ))}
                 </div>
               </section>
@@ -171,7 +206,7 @@ export default function GameList({ initialGames, initialFavorites }: GameListPro
                 </h2>
                 <div className="space-y-2">
                   {otherGames.map((game) => (
-                    <GameCard key={game.id} game={game} />
+                    <GameCard key={game.id} game={game} showScores={showScores} />
                   ))}
                 </div>
               </section>
@@ -179,16 +214,6 @@ export default function GameList({ initialGames, initialFavorites }: GameListPro
           </div>
         )}
       </main>
-
-      {/* Fixed Footer Navigation - Mobile only */}
-      <footer className="fixed bottom-0 left-0 right-0 bg-white border-t border-stone-200 sm:hidden dark:bg-stone-800 dark:border-stone-700">
-        <div className="max-w-2xl mx-auto px-4 py-3">
-          <DayFilterNav
-            selectedFilter={selectedFilter}
-            onFilterChange={setSelectedFilter}
-          />
-        </div>
-      </footer>
     </div>
   )
 }

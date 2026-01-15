@@ -13,6 +13,8 @@ export interface GameWithDetails {
   priority: Priority
   scheduledTime: Date | null
   completedAt: Date | null
+  homeScore: number | null
+  awayScore: number | null
 }
 
 /**
@@ -28,15 +30,20 @@ export async function getGames(): Promise<GameWithDetails[]> {
     orderBy: [desc(games.createdAt)],
   })
 
-  return results.map((game) => ({
-    id: game.id,
-    awayTeam: game.awayTeam.name,
-    homeTeam: game.homeTeam.name,
-    status: game.status as GameStatus,
-    priority: derivePriority(getLatestSnapshot(game.snapshots)),
-    scheduledTime: game.scheduledTime,
-    completedAt: game.completedAt,
-  }))
+  return results.map((game) => {
+    const latestSnapshot = getLatestSnapshot(game.snapshots)
+    return {
+      id: game.id,
+      awayTeam: game.awayTeam.name,
+      homeTeam: game.homeTeam.name,
+      status: game.status as GameStatus,
+      priority: derivePriority(latestSnapshot),
+      scheduledTime: game.scheduledTime,
+      completedAt: game.completedAt,
+      homeScore: latestSnapshot?.homeScore ?? null,
+      awayScore: latestSnapshot?.awayScore ?? null,
+    }
+  })
 }
 
 /**
@@ -53,15 +60,20 @@ export async function getGamesByStatus(status: GameStatus): Promise<GameWithDeta
     orderBy: [desc(games.scheduledTime)],
   })
 
-  return results.map((game) => ({
-    id: game.id,
-    awayTeam: game.awayTeam.name,
-    homeTeam: game.homeTeam.name,
-    status: game.status as GameStatus,
-    priority: derivePriority(getLatestSnapshot(game.snapshots)),
-    scheduledTime: game.scheduledTime,
-    completedAt: game.completedAt,
-  }))
+  return results.map((game) => {
+    const latestSnapshot = getLatestSnapshot(game.snapshots)
+    return {
+      id: game.id,
+      awayTeam: game.awayTeam.name,
+      homeTeam: game.homeTeam.name,
+      status: game.status as GameStatus,
+      priority: derivePriority(latestSnapshot),
+      scheduledTime: game.scheduledTime,
+      completedAt: game.completedAt,
+      homeScore: latestSnapshot?.homeScore ?? null,
+      awayScore: latestSnapshot?.awayScore ?? null,
+    }
+  })
 }
 
 /**
@@ -82,15 +94,20 @@ export async function getCompletedGames(since?: Date): Promise<GameWithDetails[]
     orderBy: [desc(games.completedAt)],
   })
 
-  return results.map((game) => ({
-    id: game.id,
-    awayTeam: game.awayTeam.name,
-    homeTeam: game.homeTeam.name,
-    status: game.status as GameStatus,
-    priority: derivePriority(getLatestSnapshot(game.snapshots)),
-    scheduledTime: game.scheduledTime,
-    completedAt: game.completedAt,
-  }))
+  return results.map((game) => {
+    const latestSnapshot = getLatestSnapshot(game.snapshots)
+    return {
+      id: game.id,
+      awayTeam: game.awayTeam.name,
+      homeTeam: game.homeTeam.name,
+      status: game.status as GameStatus,
+      priority: derivePriority(latestSnapshot),
+      scheduledTime: game.scheduledTime,
+      completedAt: game.completedAt,
+      homeScore: latestSnapshot?.homeScore ?? null,
+      awayScore: latestSnapshot?.awayScore ?? null,
+    }
+  })
 }
 
 
