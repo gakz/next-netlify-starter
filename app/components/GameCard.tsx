@@ -123,9 +123,6 @@ export default function GameCard({ game, isFavorite = false, showScores = false 
   const hasScores = game.awayScore !== null && game.homeScore !== null
   const watchabilityScore = getWatchabilityScore(game.priority, game.status)
 
-  // Game status badge text
-  const statusText = isCompleted ? 'Final' : isLive ? 'Live' : null
-
   return (
     <div
       className={`
@@ -161,24 +158,26 @@ export default function GameCard({ game, isFavorite = false, showScores = false 
           >
             {game.awayTeam} vs {game.homeTeam}
           </h3>
-          {statusText && (
-            <span
-              className={`text-xs font-semibold px-2 py-0.5 rounded ${
-                isLive
-                  ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                  : 'bg-stone-100 text-stone-600 dark:bg-stone-700 dark:text-stone-300'
-              }`}
-            >
-              {statusText}
-            </span>
-          )}
         </div>
         <div className="flex items-center gap-3">
-          <p className="text-sm text-stone-500 dark:text-stone-400">
-            {isCompleted && formatRelativeDate(game.completedAt)}
-            {isLive && formatScheduledTime(game.scheduledTime)}
-            {isUpcoming && formatScheduledTime(game.scheduledTime)}
-          </p>
+          {isLive ? (
+            <span className="text-xs font-semibold px-2 py-0.5 rounded bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
+              Live
+            </span>
+          ) : isCompleted ? (
+            <>
+              <span className="text-xs font-semibold px-2 py-0.5 rounded bg-stone-100 text-stone-600 dark:bg-stone-700 dark:text-stone-300">
+                Final
+              </span>
+              <p className="text-sm text-stone-500 dark:text-stone-400">
+                {formatRelativeDate(game.completedAt)}
+              </p>
+            </>
+          ) : (
+            <p className="text-sm text-stone-500 dark:text-stone-400">
+              {formatScheduledTime(game.scheduledTime)}
+            </p>
+          )}
           {showScores && hasScores && (
             <span className="text-sm font-semibold text-stone-700 dark:text-stone-300">
               {game.awayScore} - {game.homeScore}
