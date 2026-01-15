@@ -13,6 +13,8 @@ export interface Game {
   completedAt: Date | null
   homeScore: number | null
   awayScore: number | null
+  spread: number | null // Point spread (negative = home favorite)
+  totalValue: number | null // Over/under total
 }
 
 export interface GameCardProps {
@@ -71,17 +73,43 @@ const priorityCardStyles: Record<Priority, string> = {
 }
 
 /**
+ * Calculate spread-based adjustment for upcoming games
+ * Close spreads suggest competitive games, large spreads suggest blowouts
+ * Returns adjustment from -1.5 to +1.5
+ */
+function getSpreadAdjustment(spread: number | null): number {
+  if (spread === null) return 0
+
+  const absSpread = Math.abs(spread)
+
+  // Very close game (pick'em to 3 points) - boost rating
+  if (absSpread <= 3) return 1.5
+  // Close game (3.5 to 5 points) - slight boost
+  if (absSpread <= 5) return 0.5
+  // Moderate spread (5.5 to 7 points) - no adjustment
+  if (absSpread <= 7) return 0
+  // Large spread (7.5 to 10 points) - slight penalty
+  if (absSpread <= 10) return -0.5
+  // Blowout expected (10+ points) - bigger penalty
+  return -1.5
+}
+
+/**
  * Calculate watchability score (1-10 displayed, but constrained to ~3-9)
  * State-based caps:
- * - Upcoming: max 6
+ * - Upcoming: max 6.5 (can be boosted by close spread)
  * - Completed: max 8 (avoid 9+)
  * - Live: full range
+ *
+ * For upcoming games, spread affects the score:
+ * - Close spreads (pick'em to -3) boost the rating
+ * - Large spreads (-10+) lower the rating
  */
-function getWatchabilityScore(priority: Priority, status: GameStatus): number {
+function getWatchabilityScore(priority: Priority, status: GameStatus, spread: number | null = null): number {
   // Base scores by priority
   const baseScores: Record<Priority, Record<GameStatus, number>> = {
     high: {
-      upcoming: 6,
+      upcoming: 5.5,
       live: 8.5,
       completed: 8,
     },
@@ -91,13 +119,22 @@ function getWatchabilityScore(priority: Priority, status: GameStatus): number {
       completed: 6.5,
     },
     low: {
-      upcoming: 4,
+      upcoming: 4.5,
       live: 5,
       completed: 4,
     },
   }
 
-  return baseScores[priority][status]
+  let score = baseScores[priority][status]
+
+  // Apply spread adjustment for upcoming games
+  if (status === 'upcoming' && spread !== null) {
+    score += getSpreadAdjustment(spread)
+    // Clamp upcoming games between 3 and 7
+    score = Math.max(3, Math.min(7, score))
+  }
+
+  return score
 }
 
 /**
@@ -273,7 +310,7 @@ export default function GameCard({ game, isFavorite = false, showScores = false 
   const isLive = game.status === 'live'
   const isUpcoming = game.status === 'upcoming'
   const hasScores = game.awayScore !== null && game.homeScore !== null
-  const watchabilityScore = getWatchabilityScore(game.priority, game.status)
+  const watchabilityScore = getWatchabilityScore(game.priority, game.status, game.spread)
 
   return (
     <div

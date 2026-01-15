@@ -125,6 +125,7 @@ export const gamesRelations = relations(games, ({ one, many }) => ({
     relationName: 'homeTeam',
   }),
   snapshots: many(gameStateSnapshots),
+  expectations: many(gameExpectations),
 }))
 
 export const gameStateSnapshotsRelations = relations(gameStateSnapshots, ({ one }) => ({

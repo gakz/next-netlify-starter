@@ -15,6 +15,23 @@ export interface GameWithDetails {
   completedAt: Date | null
   homeScore: number | null
   awayScore: number | null
+  spread: number | null // Point spread for upcoming games (negative = home favorite)
+  totalValue: number | null // Over/under total
+}
+
+/**
+ * Get the latest expectation for a game
+ */
+function getLatestExpectation(
+  expectations: { spreadHome: number | null; totalValue: number | null; capturedAt: Date }[]
+): { spread: number | null; totalValue: number | null } {
+  if (expectations.length === 0) return { spread: null, totalValue: null }
+
+  const latest = expectations.reduce((latest, current) =>
+    current.capturedAt > latest.capturedAt ? current : latest
+  )
+
+  return { spread: latest.spreadHome, totalValue: latest.totalValue }
 }
 
 /**
@@ -26,12 +43,14 @@ export async function getGames(): Promise<GameWithDetails[]> {
       awayTeam: true,
       homeTeam: true,
       snapshots: true,
+      expectations: true,
     },
     orderBy: [desc(games.createdAt)],
   })
 
   return results.map((game) => {
     const latestSnapshot = getLatestSnapshot(game.snapshots)
+    const { spread, totalValue } = getLatestExpectation(game.expectations)
     return {
       id: game.id,
       awayTeam: game.awayTeam.name,
@@ -42,6 +61,8 @@ export async function getGames(): Promise<GameWithDetails[]> {
       completedAt: game.completedAt,
       homeScore: latestSnapshot?.homeScore ?? null,
       awayScore: latestSnapshot?.awayScore ?? null,
+      spread,
+      totalValue,
     }
   })
 }
@@ -56,12 +77,14 @@ export async function getGamesByStatus(status: GameStatus): Promise<GameWithDeta
       awayTeam: true,
       homeTeam: true,
       snapshots: true,
+      expectations: true,
     },
     orderBy: [desc(games.scheduledTime)],
   })
 
   return results.map((game) => {
     const latestSnapshot = getLatestSnapshot(game.snapshots)
+    const { spread, totalValue } = getLatestExpectation(game.expectations)
     return {
       id: game.id,
       awayTeam: game.awayTeam.name,
@@ -72,6 +95,8 @@ export async function getGamesByStatus(status: GameStatus): Promise<GameWithDeta
       completedAt: game.completedAt,
       homeScore: latestSnapshot?.homeScore ?? null,
       awayScore: latestSnapshot?.awayScore ?? null,
+      spread,
+      totalValue,
     }
   })
 }
@@ -90,12 +115,14 @@ export async function getCompletedGames(since?: Date): Promise<GameWithDetails[]
       awayTeam: true,
       homeTeam: true,
       snapshots: true,
+      expectations: true,
     },
     orderBy: [desc(games.completedAt)],
   })
 
   return results.map((game) => {
     const latestSnapshot = getLatestSnapshot(game.snapshots)
+    const { spread, totalValue } = getLatestExpectation(game.expectations)
     return {
       id: game.id,
       awayTeam: game.awayTeam.name,
@@ -106,6 +133,8 @@ export async function getCompletedGames(since?: Date): Promise<GameWithDetails[]
       completedAt: game.completedAt,
       homeScore: latestSnapshot?.homeScore ?? null,
       awayScore: latestSnapshot?.awayScore ?? null,
+      spread,
+      totalValue,
     }
   })
 }
