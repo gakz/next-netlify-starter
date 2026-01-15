@@ -15,6 +15,7 @@ const dayFilterOptions: { value: DayFilter; label: string }[] = [
 interface GameListProps {
   initialGames: Game[]
   initialFavorites: string[]
+  lastScoresUpdate: Date | null
 }
 
 function DayFilterNav({
@@ -85,6 +86,19 @@ function getCalendarDayDiff(date: Date, reference: Date): number {
   return Math.round((dateStart.getTime() - refStart.getTime()) / msPerDay)
 }
 
+function formatLastUpdated(date: Date): string {
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  const diffMins = Math.floor(diffMs / (1000 * 60))
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+
+  if (diffMins < 1) return 'Just now'
+  if (diffMins < 60) return `${diffMins} minute${diffMins === 1 ? '' : 's'} ago`
+  if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`
+  return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`
+}
+
 function filterCompletedByDay(games: Game[], filter: DayFilter): Game[] {
   const now = new Date()
 
@@ -106,7 +120,7 @@ function filterCompletedByDay(games: Game[], filter: DayFilter): Game[] {
   })
 }
 
-export default function GameList({ initialGames, initialFavorites }: GameListProps) {
+export default function GameList({ initialGames, initialFavorites, lastScoresUpdate }: GameListProps) {
   const [selectedFilter, setSelectedFilter] = useState<DayFilter>('last-7-days')
   const [showScores, setShowScores] = useState(false)
 
@@ -134,7 +148,7 @@ export default function GameList({ initialGames, initialFavorites }: GameListPro
   const hasGames = favoriteGames.length > 0 || otherGames.length > 0
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen flex flex-col">
       {/* Header */}
       <header className="bg-white border-b border-stone-200 sticky top-0 z-10 dark:bg-stone-800 dark:border-stone-700">
         <div className="max-w-2xl mx-auto px-4 py-4">
@@ -177,7 +191,7 @@ export default function GameList({ initialGames, initialFavorites }: GameListPro
       </header>
 
       {/* Main Content */}
-      <main className="max-w-2xl mx-auto px-4 py-6">
+      <main className="max-w-2xl mx-auto px-4 py-6 flex-1">
         {!hasGames ? (
           <div className="text-center py-12">
             <p className="text-stone-500 dark:text-stone-400">No games found.</p>
@@ -214,6 +228,16 @@ export default function GameList({ initialGames, initialFavorites }: GameListPro
           </div>
         )}
       </main>
+
+      {/* Footer */}
+      <footer className="border-t border-stone-200 dark:border-stone-700 mt-auto">
+        <div className="max-w-2xl mx-auto px-4 py-4">
+          <p className="text-sm text-stone-500 dark:text-stone-400 text-center">
+            Scores last updated:{' '}
+            {lastScoresUpdate ? formatLastUpdated(new Date(lastScoresUpdate)) : 'Unknown'}
+          </p>
+        </div>
+      </footer>
     </div>
   )
 }

@@ -148,3 +148,21 @@ function getMockTeams(): { id: string; name: string; league: string }[] {
     { id: 't12', name: 'Toronto Blue Jays', league: 'MLB' },
   ]
 }
+
+/**
+ * Get the timestamp of the most recent scores update
+ */
+export async function fetchLastScoresUpdate(): Promise<Date | null> {
+  if (!isDatabaseConfigured()) {
+    // Return current time as mock data fallback
+    return new Date()
+  }
+
+  try {
+    const { getLastScoresUpdate } = await import('@/db/queries')
+    return await getLastScoresUpdate()
+  } catch (error) {
+    console.error('Failed to fetch last scores update:', error)
+    return null
+  }
+}

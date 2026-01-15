@@ -149,3 +149,17 @@ export async function removeFavoriteTeam(userId: string, teamId: string) {
     .delete(userTeams)
     .where(and(eq(userTeams.userId, userId), eq(userTeams.teamId, teamId)))
 }
+
+/**
+ * Get the most recent scores update timestamp
+ */
+export async function getLastScoresUpdate(): Promise<Date | null> {
+  const result = await db.query.gameStateSnapshots.findFirst({
+    orderBy: [desc(gameStateSnapshots.capturedAt)],
+    columns: {
+      capturedAt: true,
+    },
+  })
+
+  return result?.capturedAt ?? null
+}
