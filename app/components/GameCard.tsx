@@ -11,11 +11,14 @@ export interface Game {
   priority: Priority
   scheduledTime: Date | null
   completedAt: Date | null
+  homeScore: number | null
+  awayScore: number | null
 }
 
-interface GameCardProps {
+export interface GameCardProps {
   game: Game
   isFavorite?: boolean
+  showScores?: boolean
 }
 
 const priorityLabels: Record<Priority, string> = {
@@ -86,10 +89,11 @@ function formatScheduledTime(date: Date | null): string {
   return `${date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}, ${timeStr}`
 }
 
-export default function GameCard({ game, isFavorite = false }: GameCardProps) {
+export default function GameCard({ game, isFavorite = false, showScores = false }: GameCardProps) {
   const isCompleted = game.status === 'completed'
   const isLive = game.status === 'live'
   const isUpcoming = game.status === 'upcoming'
+  const hasScores = game.awayScore !== null && game.homeScore !== null
 
   return (
     <div
@@ -117,7 +121,12 @@ export default function GameCard({ game, isFavorite = false }: GameCardProps) {
             {isUpcoming && formatScheduledTime(game.scheduledTime)}
           </p>
         </div>
-        <div className="flex items-center gap-2 whitespace-nowrap">
+        <div className="flex items-center gap-3 whitespace-nowrap">
+          {showScores && hasScores && (
+            <span className="text-lg font-semibold text-stone-900 dark:text-stone-100">
+              {game.awayScore} - {game.homeScore}
+            </span>
+          )}
           {isLive && (
             <span className="text-sm text-stone-600 dark:text-stone-300">Live</span>
           )}

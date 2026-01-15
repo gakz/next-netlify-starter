@@ -108,6 +108,7 @@ function filterCompletedByDay(games: Game[], filter: DayFilter): Game[] {
 
 export default function GameList({ initialGames, initialFavorites }: GameListProps) {
   const [selectedFilter, setSelectedFilter] = useState<DayFilter>('last-7-days')
+  const [showScores, setShowScores] = useState(false)
 
   const { favoriteGames, otherGames } = useMemo(() => {
     // Get live and upcoming games (not filtered by day)
@@ -139,12 +140,31 @@ export default function GameList({ initialGames, initialFavorites }: GameListPro
         <div className="max-w-2xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <h1 className="text-xl font-semibold text-stone-900 dark:text-stone-100">SpoilSport</h1>
-            <Link
-              href="/settings"
-              className="text-sm text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200"
-            >
-              Settings
-            </Link>
+            <div className="flex items-center gap-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <span className="text-sm text-stone-500 dark:text-stone-400">Scores</span>
+                <button
+                  role="switch"
+                  aria-checked={showScores}
+                  onClick={() => setShowScores(!showScores)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    showScores ? 'bg-stone-600 dark:bg-stone-500' : 'bg-stone-300 dark:bg-stone-600'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      showScores ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </label>
+              <Link
+                href="/settings"
+                className="text-sm text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200"
+              >
+                Settings
+              </Link>
+            </div>
           </div>
 
           {/* Day Filter - Desktop only */}
@@ -172,7 +192,7 @@ export default function GameList({ initialGames, initialFavorites }: GameListPro
                 </h2>
                 <div className="space-y-2">
                   {favoriteGames.map((game) => (
-                    <GameCard key={game.id} game={game} isFavorite />
+                    <GameCard key={game.id} game={game} isFavorite showScores={showScores} />
                   ))}
                 </div>
               </section>
@@ -186,7 +206,7 @@ export default function GameList({ initialGames, initialFavorites }: GameListPro
                 </h2>
                 <div className="space-y-2">
                   {otherGames.map((game) => (
-                    <GameCard key={game.id} game={game} />
+                    <GameCard key={game.id} game={game} showScores={showScores} />
                   ))}
                 </div>
               </section>

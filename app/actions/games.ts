@@ -116,19 +116,19 @@ function getMockGames(): GameWithDetails[] {
 
   return [
     // Upcoming
-    { id: 'u1', awayTeam: 'Boston Celtics', homeTeam: 'Philadelphia 76ers', status: 'upcoming' as GameStatus, priority: 'high' as Priority, scheduledTime: tomorrow, completedAt: null },
-    { id: 'u2', awayTeam: 'Los Angeles Dodgers', homeTeam: 'San Francisco Giants', status: 'upcoming' as GameStatus, priority: 'medium' as Priority, scheduledTime: tomorrow, completedAt: null },
+    { id: 'u1', awayTeam: 'Boston Celtics', homeTeam: 'Philadelphia 76ers', status: 'upcoming' as GameStatus, priority: 'high' as Priority, scheduledTime: tomorrow, completedAt: null, homeScore: null, awayScore: null },
+    { id: 'u2', awayTeam: 'Los Angeles Dodgers', homeTeam: 'San Francisco Giants', status: 'upcoming' as GameStatus, priority: 'medium' as Priority, scheduledTime: tomorrow, completedAt: null, homeScore: null, awayScore: null },
     // Live
-    { id: 'l1', awayTeam: 'New York Yankees', homeTeam: 'Toronto Blue Jays', status: 'live' as GameStatus, priority: 'high' as Priority, scheduledTime: now, completedAt: null },
-    { id: 'l2', awayTeam: 'Denver Nuggets', homeTeam: 'Phoenix Suns', status: 'live' as GameStatus, priority: 'medium' as Priority, scheduledTime: now, completedAt: null },
+    { id: 'l1', awayTeam: 'New York Yankees', homeTeam: 'Toronto Blue Jays', status: 'live' as GameStatus, priority: 'high' as Priority, scheduledTime: now, completedAt: null, homeScore: 3, awayScore: 5 },
+    { id: 'l2', awayTeam: 'Denver Nuggets', homeTeam: 'Phoenix Suns', status: 'live' as GameStatus, priority: 'medium' as Priority, scheduledTime: now, completedAt: null, homeScore: 87, awayScore: 92 },
     // Completed - today
-    { id: 'c1', awayTeam: 'Boston Celtics', homeTeam: 'Miami Heat', status: 'completed' as GameStatus, priority: 'high' as Priority, scheduledTime: now, completedAt: now },
-    { id: 'c2', awayTeam: 'Los Angeles Lakers', homeTeam: 'Golden State Warriors', status: 'completed' as GameStatus, priority: 'medium' as Priority, scheduledTime: now, completedAt: now },
+    { id: 'c1', awayTeam: 'Boston Celtics', homeTeam: 'Miami Heat', status: 'completed' as GameStatus, priority: 'high' as Priority, scheduledTime: now, completedAt: now, homeScore: 98, awayScore: 102 },
+    { id: 'c2', awayTeam: 'Los Angeles Lakers', homeTeam: 'Golden State Warriors', status: 'completed' as GameStatus, priority: 'medium' as Priority, scheduledTime: now, completedAt: now, homeScore: 115, awayScore: 108 },
     // Completed - yesterday
-    { id: 'c3', awayTeam: 'New York Yankees', homeTeam: 'Boston Red Sox', status: 'completed' as GameStatus, priority: 'high' as Priority, scheduledTime: yesterday, completedAt: yesterday },
-    { id: 'c4', awayTeam: 'Philadelphia 76ers', homeTeam: 'Miami Heat', status: 'completed' as GameStatus, priority: 'low' as Priority, scheduledTime: yesterday, completedAt: yesterday },
+    { id: 'c3', awayTeam: 'New York Yankees', homeTeam: 'Boston Red Sox', status: 'completed' as GameStatus, priority: 'high' as Priority, scheduledTime: yesterday, completedAt: yesterday, homeScore: 4, awayScore: 7 },
+    { id: 'c4', awayTeam: 'Philadelphia 76ers', homeTeam: 'Miami Heat', status: 'completed' as GameStatus, priority: 'low' as Priority, scheduledTime: yesterday, completedAt: yesterday, homeScore: 110, awayScore: 95 },
     // Completed - 2 days ago
-    { id: 'c5', awayTeam: 'San Francisco Giants', homeTeam: 'Los Angeles Dodgers', status: 'completed' as GameStatus, priority: 'low' as Priority, scheduledTime: twoDaysAgo, completedAt: twoDaysAgo },
+    { id: 'c5', awayTeam: 'San Francisco Giants', homeTeam: 'Los Angeles Dodgers', status: 'completed' as GameStatus, priority: 'low' as Priority, scheduledTime: twoDaysAgo, completedAt: twoDaysAgo, homeScore: 6, awayScore: 3 },
   ]
 }
 
