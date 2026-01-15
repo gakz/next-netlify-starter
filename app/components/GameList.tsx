@@ -174,7 +174,9 @@ export default function GameList({ initialGames, initialFavorites, lastScoresUpd
     const upcomingGames = sportFilteredGames.filter((g) => g.status === 'upcoming')
 
     // Get completed games filtered by day
-    const filteredCompletedGames = filterCompletedByDay(sportFilteredGames, selectedFilter)
+    // NFL shows all games within the week regardless of day filter
+    const effectiveDayFilter = selectedSport === 'NFL' ? 'last-7-days' : selectedFilter
+    const filteredCompletedGames = filterCompletedByDay(sportFilteredGames, effectiveDayFilter)
 
     // Combine all games for display
     const allGamesForDisplay = [...filteredCompletedGames, ...liveGames, ...upcomingGames]
