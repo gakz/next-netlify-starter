@@ -5,6 +5,11 @@ import { derivePriority, getLatestSnapshot, type Priority } from './derive-prior
 
 export type GameStatus = 'upcoming' | 'live' | 'completed'
 
+export interface TeamRecord {
+  wins: number
+  losses: number
+}
+
 export interface GameWithDetails {
   id: string
   awayTeam: string
@@ -15,6 +20,35 @@ export interface GameWithDetails {
   completedAt: Date | null
   homeScore: number | null
   awayScore: number | null
+  spread: number | null // Point spread for upcoming games (negative = home favorite)
+  totalValue: number | null // Over/under total
+  awayTeamRecord: TeamRecord | null // Away team win/loss record
+  homeTeamRecord: TeamRecord | null // Home team win/loss record
+}
+
+/**
+ * Get the latest expectation for a game
+ */
+function getLatestExpectation(
+  expectations: { spreadHome: number | null; totalValue: number | null; capturedAt: Date }[]
+): { spread: number | null; totalValue: number | null } {
+  if (expectations.length === 0) return { spread: null, totalValue: null }
+
+  const latest = expectations.reduce((latest, current) =>
+    current.capturedAt > latest.capturedAt ? current : latest
+  )
+
+  return { spread: latest.spreadHome, totalValue: latest.totalValue }
+}
+
+/**
+ * Extract team record from team data
+ * Returns null if record hasn't been set (both 0-0)
+ */
+function getTeamRecord(team: { wins: number; losses: number }): TeamRecord | null {
+  // If both wins and losses are 0, consider record as not set
+  if (team.wins === 0 && team.losses === 0) return null
+  return { wins: team.wins, losses: team.losses }
 }
 
 /**
@@ -26,12 +60,14 @@ export async function getGames(): Promise<GameWithDetails[]> {
       awayTeam: true,
       homeTeam: true,
       snapshots: true,
+      expectations: true,
     },
     orderBy: [desc(games.createdAt)],
   })
 
   return results.map((game) => {
     const latestSnapshot = getLatestSnapshot(game.snapshots)
+    const { spread, totalValue } = getLatestExpectation(game.expectations)
     return {
       id: game.id,
       awayTeam: game.awayTeam.name,
@@ -42,6 +78,10 @@ export async function getGames(): Promise<GameWithDetails[]> {
       completedAt: game.completedAt,
       homeScore: latestSnapshot?.homeScore ?? null,
       awayScore: latestSnapshot?.awayScore ?? null,
+      spread,
+      totalValue,
+      awayTeamRecord: getTeamRecord(game.awayTeam),
+      homeTeamRecord: getTeamRecord(game.homeTeam),
     }
   })
 }
@@ -56,12 +96,14 @@ export async function getGamesByStatus(status: GameStatus): Promise<GameWithDeta
       awayTeam: true,
       homeTeam: true,
       snapshots: true,
+      expectations: true,
     },
     orderBy: [desc(games.scheduledTime)],
   })
 
   return results.map((game) => {
     const latestSnapshot = getLatestSnapshot(game.snapshots)
+    const { spread, totalValue } = getLatestExpectation(game.expectations)
     return {
       id: game.id,
       awayTeam: game.awayTeam.name,
@@ -72,6 +114,10 @@ export async function getGamesByStatus(status: GameStatus): Promise<GameWithDeta
       completedAt: game.completedAt,
       homeScore: latestSnapshot?.homeScore ?? null,
       awayScore: latestSnapshot?.awayScore ?? null,
+      spread,
+      totalValue,
+      awayTeamRecord: getTeamRecord(game.awayTeam),
+      homeTeamRecord: getTeamRecord(game.homeTeam),
     }
   })
 }
@@ -90,12 +136,14 @@ export async function getCompletedGames(since?: Date): Promise<GameWithDetails[]
       awayTeam: true,
       homeTeam: true,
       snapshots: true,
+      expectations: true,
     },
     orderBy: [desc(games.completedAt)],
   })
 
   return results.map((game) => {
     const latestSnapshot = getLatestSnapshot(game.snapshots)
+    const { spread, totalValue } = getLatestExpectation(game.expectations)
     return {
       id: game.id,
       awayTeam: game.awayTeam.name,
@@ -106,6 +154,10 @@ export async function getCompletedGames(since?: Date): Promise<GameWithDetails[]
       completedAt: game.completedAt,
       homeScore: latestSnapshot?.homeScore ?? null,
       awayScore: latestSnapshot?.awayScore ?? null,
+      spread,
+      totalValue,
+      awayTeamRecord: getTeamRecord(game.awayTeam),
+      homeTeamRecord: getTeamRecord(game.homeTeam),
     }
   })
 }
@@ -148,4 +200,18 @@ export async function removeFavoriteTeam(userId: string, teamId: string) {
   await db
     .delete(userTeams)
     .where(and(eq(userTeams.userId, userId), eq(userTeams.teamId, teamId)))
+}
+
+/**
+ * Get the most recent scores update timestamp
+ */
+export async function getLastScoresUpdate(): Promise<Date | null> {
+  const result = await db.query.gameStateSnapshots.findFirst({
+    orderBy: [desc(gameStateSnapshots.capturedAt)],
+    columns: {
+      capturedAt: true,
+    },
+  })
+
+  return result?.capturedAt ?? null
 }

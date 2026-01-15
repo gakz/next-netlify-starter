@@ -20,6 +20,10 @@ export const teams = pgTable('teams', {
   id: uuid('id').defaultRandom().primaryKey(),
   name: varchar('name', { length: 255 }).notNull().unique(),
   league: varchar('league', { length: 100 }).notNull(),
+  // Season record - updated from external source or calculated from games
+  wins: integer('wins').notNull().default(0),
+  losses: integer('losses').notNull().default(0),
+  recordUpdatedAt: timestamp('record_updated_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
 
@@ -125,6 +129,7 @@ export const gamesRelations = relations(games, ({ one, many }) => ({
     relationName: 'homeTeam',
   }),
   snapshots: many(gameStateSnapshots),
+  expectations: many(gameExpectations),
 }))
 
 export const gameStateSnapshotsRelations = relations(gameStateSnapshots, ({ one }) => ({

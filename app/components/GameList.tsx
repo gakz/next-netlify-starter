@@ -15,6 +15,8 @@ const dayFilterOptions: { value: DayFilter; label: string }[] = [
 interface GameListProps {
   initialGames: Game[]
   initialFavorites: string[]
+  lastScoresUpdate: Date | null
+  isLoggedIn: boolean
 }
 
 function DayFilterNav({
@@ -85,6 +87,19 @@ function getCalendarDayDiff(date: Date, reference: Date): number {
   return Math.round((dateStart.getTime() - refStart.getTime()) / msPerDay)
 }
 
+function formatLastUpdated(date: Date): string {
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  const diffMins = Math.floor(diffMs / (1000 * 60))
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+
+  if (diffMins < 1) return 'Just now'
+  if (diffMins < 60) return `${diffMins} minute${diffMins === 1 ? '' : 's'} ago`
+  if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`
+  return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`
+}
+
 function filterCompletedByDay(games: Game[], filter: DayFilter): Game[] {
   const now = new Date()
 
@@ -106,7 +121,7 @@ function filterCompletedByDay(games: Game[], filter: DayFilter): Game[] {
   })
 }
 
-export default function GameList({ initialGames, initialFavorites }: GameListProps) {
+export default function GameList({ initialGames, initialFavorites, lastScoresUpdate, isLoggedIn }: GameListProps) {
   const [selectedFilter, setSelectedFilter] = useState<DayFilter>('last-7-days')
   const [showScores, setShowScores] = useState(false)
 
@@ -134,7 +149,7 @@ export default function GameList({ initialGames, initialFavorites }: GameListPro
   const hasGames = favoriteGames.length > 0 || otherGames.length > 0
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen flex flex-col">
       {/* Header */}
       <header className="bg-white border-b border-stone-200 sticky top-0 z-10 dark:bg-stone-800 dark:border-stone-700">
         <div className="max-w-2xl mx-auto px-4 py-4">
@@ -159,10 +174,10 @@ export default function GameList({ initialGames, initialFavorites }: GameListPro
                 </button>
               </label>
               <Link
-                href="/settings"
+                href={isLoggedIn ? '/settings' : '/auth/sign-in'}
                 className="text-sm text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200"
               >
-                Settings
+                {isLoggedIn ? 'Settings' : 'Login'}
               </Link>
             </div>
           </div>
@@ -177,7 +192,8 @@ export default function GameList({ initialGames, initialFavorites }: GameListPro
       </header>
 
       {/* Main Content */}
-      <main className="max-w-2xl mx-auto px-4 py-6">
+      <main className="flex-1 min-w-0">
+        <div className="max-w-2xl mx-auto px-4 py-6">
         {!hasGames ? (
           <div className="text-center py-12">
             <p className="text-stone-500 dark:text-stone-400">No games found.</p>
@@ -198,6 +214,28 @@ export default function GameList({ initialGames, initialFavorites }: GameListPro
               </section>
             )}
 
+            {/* Sign in callout for non-logged in users */}
+            {!isLoggedIn && (
+              <div className="bg-stone-100 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-lg p-4">
+                <p className="text-sm text-stone-600 dark:text-stone-300">
+                  <Link
+                    href="/auth/sign-in"
+                    className="font-medium text-stone-900 dark:text-stone-100 hover:underline"
+                  >
+                    Sign in
+                  </Link>
+                  {' '}or{' '}
+                  <Link
+                    href="/auth/sign-up"
+                    className="font-medium text-stone-900 dark:text-stone-100 hover:underline"
+                  >
+                    create an account
+                  </Link>
+                  {' '}to save your favorite teams.
+                </p>
+              </div>
+            )}
+
             {/* Other Games Section */}
             {otherGames.length > 0 && (
               <section>
@@ -213,7 +251,18 @@ export default function GameList({ initialGames, initialFavorites }: GameListPro
             )}
           </div>
         )}
+        </div>
       </main>
+
+      {/* Footer */}
+      <footer className="border-t border-stone-200 dark:border-stone-700 mt-auto">
+        <div className="max-w-2xl mx-auto px-4 py-4">
+          <p className="text-sm text-stone-500 dark:text-stone-400 text-center">
+            Scores last updated:{' '}
+            {lastScoresUpdate ? formatLastUpdated(new Date(lastScoresUpdate)) : 'Unknown'}
+          </p>
+        </div>
+      </footer>
     </div>
   )
 }
