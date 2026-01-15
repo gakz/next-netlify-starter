@@ -21,6 +21,41 @@ export interface GameCardProps {
   showScores?: boolean
 }
 
+// Multi-word city prefixes to strip from team names
+const multiWordCities = [
+  'Los Angeles',
+  'Golden State',
+  'New York',
+  'San Francisco',
+  'San Antonio',
+  'San Diego',
+  'Oklahoma City',
+  'Kansas City',
+  'Salt Lake',
+  'New Orleans',
+  'St. Louis',
+  'Tampa Bay',
+]
+
+/**
+ * Extract team nickname from full team name
+ * e.g., "Los Angeles Lakers" -> "Lakers", "Boston Celtics" -> "Celtics"
+ */
+function getTeamNickname(fullName: string): string {
+  // Check for multi-word city prefixes first
+  for (const city of multiWordCities) {
+    if (fullName.startsWith(city + ' ')) {
+      return fullName.slice(city.length + 1)
+    }
+  }
+  // Otherwise, assume single-word city and take everything after first space
+  const spaceIndex = fullName.indexOf(' ')
+  if (spaceIndex !== -1) {
+    return fullName.slice(spaceIndex + 1)
+  }
+  return fullName
+}
+
 // Left border intensity by priority (neutral slate)
 const priorityBorderStyles: Record<Priority, string> = {
   high: 'border-l-[3px] border-l-slate-500 dark:border-l-slate-400',
@@ -258,7 +293,7 @@ export default function GameCard({ game, isFavorite = false, showScores = false 
               isFavorite ? 'font-semibold' : 'font-medium'
             }`}
           >
-            {game.awayTeam} vs {game.homeTeam}
+            {getTeamNickname(game.awayTeam)} vs {getTeamNickname(game.homeTeam)}
           </h3>
         </div>
         <div className="flex items-center gap-3 mt-0.5">
