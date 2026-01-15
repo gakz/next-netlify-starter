@@ -139,6 +139,9 @@ function getMockRecord(teamName: string): { wins: number; losses: number } | nul
 function getMockGames(): GameWithDetails[] {
   const now = new Date()
   const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000)
+  const in3Days = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000)
+  const in5Days = new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000)
+  const in6Days = new Date(now.getTime() + 6 * 24 * 60 * 60 * 1000)
   const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000)
   const twoDaysAgo = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000)
 
@@ -149,8 +152,16 @@ function getMockGames(): GameWithDetails[] {
     { id: 'u2', awayTeam: 'Los Angeles Dodgers', homeTeam: 'San Francisco Giants', league: 'MLB', status: 'upcoming' as GameStatus, priority: 'medium' as Priority, scheduledTime: tomorrow, completedAt: null, homeScore: null, awayScore: null, spread: -1.5, totalValue: 8.5, awayTeamRecord: getMockRecord('Los Angeles Dodgers'), homeTeamRecord: getMockRecord('San Francisco Giants') },
     // NBA - Upcoming - large spread, mismatch (Heat vs dominant Nuggets)
     { id: 'u3', awayTeam: 'Miami Heat', homeTeam: 'Denver Nuggets', league: 'NBA', status: 'upcoming' as GameStatus, priority: 'low' as Priority, scheduledTime: tomorrow, completedAt: null, homeScore: null, awayScore: null, spread: -9.5, totalValue: 215.0, awayTeamRecord: getMockRecord('Miami Heat'), homeTeamRecord: getMockRecord('Denver Nuggets') },
-    // NFL - Upcoming - marquee matchup
+    // NFL - Upcoming - Thursday Night Football
     { id: 'u4', awayTeam: 'Kansas City Chiefs', homeTeam: 'Buffalo Bills', league: 'NFL', status: 'upcoming' as GameStatus, priority: 'high' as Priority, scheduledTime: tomorrow, completedAt: null, homeScore: null, awayScore: null, spread: -1.5, totalValue: 48.5, awayTeamRecord: getMockRecord('Kansas City Chiefs'), homeTeamRecord: getMockRecord('Buffalo Bills') },
+    // NFL - Upcoming - Sunday games (multiple)
+    { id: 'u5', awayTeam: 'San Francisco 49ers', homeTeam: 'Philadelphia Eagles', league: 'NFL', status: 'upcoming' as GameStatus, priority: 'high' as Priority, scheduledTime: in3Days, completedAt: null, homeScore: null, awayScore: null, spread: -3.0, totalValue: 47.5, awayTeamRecord: getMockRecord('San Francisco 49ers'), homeTeamRecord: getMockRecord('Philadelphia Eagles') },
+    { id: 'u6', awayTeam: 'Detroit Lions', homeTeam: 'Dallas Cowboys', league: 'NFL', status: 'upcoming' as GameStatus, priority: 'medium' as Priority, scheduledTime: in3Days, completedAt: null, homeScore: null, awayScore: null, spread: -2.5, totalValue: 51.0, awayTeamRecord: getMockRecord('Detroit Lions'), homeTeamRecord: getMockRecord('Dallas Cowboys') },
+    { id: 'u7', awayTeam: 'Buffalo Bills', homeTeam: 'Miami Dolphins', league: 'NFL', status: 'upcoming' as GameStatus, priority: 'medium' as Priority, scheduledTime: in3Days, completedAt: null, homeScore: null, awayScore: null, spread: -4.5, totalValue: 49.0, awayTeamRecord: getMockRecord('Buffalo Bills'), homeTeamRecord: getMockRecord('Miami Dolphins') },
+    // NFL - Upcoming - Sunday Night Football
+    { id: 'u8', awayTeam: 'Kansas City Chiefs', homeTeam: 'San Francisco 49ers', league: 'NFL', status: 'upcoming' as GameStatus, priority: 'high' as Priority, scheduledTime: in5Days, completedAt: null, homeScore: null, awayScore: null, spread: -1.0, totalValue: 46.5, awayTeamRecord: getMockRecord('Kansas City Chiefs'), homeTeamRecord: getMockRecord('San Francisco 49ers') },
+    // NFL - Upcoming - Monday Night Football
+    { id: 'u9', awayTeam: 'Philadelphia Eagles', homeTeam: 'Detroit Lions', league: 'NFL', status: 'upcoming' as GameStatus, priority: 'high' as Priority, scheduledTime: in6Days, completedAt: null, homeScore: null, awayScore: null, spread: -2.0, totalValue: 50.5, awayTeamRecord: getMockRecord('Philadelphia Eagles'), homeTeamRecord: getMockRecord('Detroit Lions') },
     // MLB - Live
     { id: 'l1', awayTeam: 'New York Yankees', homeTeam: 'Toronto Blue Jays', league: 'MLB', status: 'live' as GameStatus, priority: 'high' as Priority, scheduledTime: now, completedAt: null, homeScore: 3, awayScore: 5, spread: null, totalValue: null, awayTeamRecord: getMockRecord('New York Yankees'), homeTeamRecord: getMockRecord('Toronto Blue Jays') },
     // NBA - Live

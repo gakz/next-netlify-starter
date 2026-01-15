@@ -158,6 +158,21 @@ function filterCompletedByDay(games: Game[], filter: DayFilter): Game[] {
   })
 }
 
+/**
+ * Filter upcoming games to only include those within the next N days
+ */
+function filterUpcomingByDaysAhead(games: Game[], daysAhead: number): Game[] {
+  const now = new Date()
+
+  return games.filter((game) => {
+    if (game.status !== 'upcoming' || !game.scheduledTime) return false
+    const scheduledTime = new Date(game.scheduledTime)
+    const dayDiff = getCalendarDayDiff(scheduledTime, now)
+
+    return dayDiff >= 0 && dayDiff <= daysAhead
+  })
+}
+
 export default function GameList({ initialGames, initialFavorites, lastScoresUpdate, isLoggedIn }: GameListProps) {
   const [selectedFilter, setSelectedFilter] = useState<DayFilter>('last-7-days')
   const [selectedSport, setSelectedSport] = useState<SportFilter>('all')
@@ -169,9 +184,13 @@ export default function GameList({ initialGames, initialFavorites, lastScoresUpd
       ? initialGames
       : initialGames.filter((g) => g.league === selectedSport)
 
-    // Get live and upcoming games (not filtered by day)
+    // Get live games (always shown)
     const liveGames = sportFilteredGames.filter((g) => g.status === 'live')
-    const upcomingGames = sportFilteredGames.filter((g) => g.status === 'upcoming')
+
+    // Get upcoming games - NFL shows full week ahead
+    const upcomingGames = selectedSport === 'NFL'
+      ? filterUpcomingByDaysAhead(sportFilteredGames, 7)
+      : sportFilteredGames.filter((g) => g.status === 'upcoming')
 
     // Get completed games filtered by day
     // NFL shows all games within the week regardless of day filter
