@@ -255,7 +255,7 @@ function RatingBadge({
       {/* Inner badge */}
       <div
         className={`
-          relative z-10 flex items-center justify-center
+          relative flex items-center justify-center
           w-[calc(100%-6px)] h-[calc(100%-6px)] rounded-full
           ${styles.bgColor}
         `}
