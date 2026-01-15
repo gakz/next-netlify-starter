@@ -191,7 +191,8 @@ export default function GameList({ initialGames, initialFavorites, lastScoresUpd
       </header>
 
       {/* Main Content */}
-      <main className="max-w-2xl mx-auto px-4 py-6 flex-1">
+      <main className="flex-1 w-full">
+        <div className="max-w-2xl mx-auto px-4 py-6">
         {!hasGames ? (
           <div className="text-center py-12">
             <p className="text-stone-500 dark:text-stone-400">No games found.</p>
@@ -227,6 +228,7 @@ export default function GameList({ initialGames, initialFavorites, lastScoresUpd
             )}
           </div>
         )}
+        </div>
       </main>
 
       {/* Footer */}
