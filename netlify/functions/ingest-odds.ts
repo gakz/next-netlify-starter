@@ -1,7 +1,7 @@
 import type { Config, Context } from '@netlify/functions'
 import { neon } from '@neondatabase/serverless'
 import { drizzle } from 'drizzle-orm/neon-http'
-import { eq, and } from 'drizzle-orm'
+import { eq, and, gte, lte } from 'drizzle-orm'
 import { gameExpectations, games, teams } from '../../db/schema'
 import {
   createOddsClient,
@@ -17,44 +17,94 @@ interface IngestionResult {
   sportKey: string
   eventsProcessed: number
   expectationsWritten: number
-  gamesMatched: number
+  gamesCreated: number
+  teamsCreated: number
   errors: string[]
 }
 
 /**
- * Try to match an expectation to an existing game in the database
+ * Map sport key to league name
  */
-async function matchGameId(
-  db: ReturnType<typeof drizzle>,
-  expectation: NormalizedExpectation
-): Promise<string | null> {
-  // Get teams from database
-  const allTeams = await db.select().from(teams)
-
-  // Find home and away teams by name (case-insensitive partial match)
-  const homeTeam = allTeams.find(
-    (t) =>
-      t.name.toLowerCase().includes(expectation.homeTeam.toLowerCase()) ||
-      expectation.homeTeam.toLowerCase().includes(t.name.toLowerCase())
-  )
-  const awayTeam = allTeams.find(
-    (t) =>
-      t.name.toLowerCase().includes(expectation.awayTeam.toLowerCase()) ||
-      expectation.awayTeam.toLowerCase().includes(t.name.toLowerCase())
-  )
-
-  if (!homeTeam || !awayTeam) {
-    return null
+function getLeagueFromSportKey(sportKey: string): string {
+  const leagueMap: Record<string, string> = {
+    basketball_nba: 'NBA',
+    americanfootball_nfl: 'NFL',
+    baseball_mlb: 'MLB',
+    icehockey_nhl: 'NHL',
   }
+  return leagueMap[sportKey] || sportKey.toUpperCase()
+}
 
-  // Find a game with these teams
-  const matchingGames = await db
+/**
+ * Find or create a team by name
+ */
+async function findOrCreateTeam(
+  db: ReturnType<typeof drizzle>,
+  teamName: string,
+  league: string
+): Promise<{ id: string; created: boolean }> {
+  // Try to find existing team (exact match)
+  const existing = await db
     .select()
-    .from(games)
-    .where(and(eq(games.homeTeamId, homeTeam.id), eq(games.awayTeamId, awayTeam.id)))
+    .from(teams)
+    .where(eq(teams.name, teamName))
     .limit(1)
 
-  return matchingGames[0]?.id ?? null
+  if (existing.length > 0) {
+    return { id: existing[0].id, created: false }
+  }
+
+  // Create new team
+  const [newTeam] = await db
+    .insert(teams)
+    .values({ name: teamName, league })
+    .returning({ id: teams.id })
+
+  return { id: newTeam.id, created: true }
+}
+
+/**
+ * Find or create a game for the given teams and time
+ */
+async function findOrCreateGame(
+  db: ReturnType<typeof drizzle>,
+  homeTeamId: string,
+  awayTeamId: string,
+  commenceTime: Date
+): Promise<{ id: string; created: boolean }> {
+  // Look for existing game with same teams within a 24-hour window of commence time
+  const windowStart = new Date(commenceTime.getTime() - 12 * 60 * 60 * 1000)
+  const windowEnd = new Date(commenceTime.getTime() + 12 * 60 * 60 * 1000)
+
+  const existing = await db
+    .select()
+    .from(games)
+    .where(
+      and(
+        eq(games.homeTeamId, homeTeamId),
+        eq(games.awayTeamId, awayTeamId),
+        gte(games.scheduledTime, windowStart),
+        lte(games.scheduledTime, windowEnd)
+      )
+    )
+    .limit(1)
+
+  if (existing.length > 0) {
+    return { id: existing[0].id, created: false }
+  }
+
+  // Create new game
+  const [newGame] = await db
+    .insert(games)
+    .values({
+      homeTeamId,
+      awayTeamId,
+      scheduledTime: commenceTime,
+      status: 'upcoming',
+    })
+    .returning({ id: games.id })
+
+  return { id: newGame.id, created: true }
 }
 
 /**
@@ -68,9 +118,12 @@ async function ingestSport(
     sportKey: sportConfig.key,
     eventsProcessed: 0,
     expectationsWritten: 0,
-    gamesMatched: 0,
+    gamesCreated: 0,
+    teamsCreated: 0,
     errors: [],
   }
+
+  const league = getLeagueFromSportKey(sportConfig.key)
 
   try {
     const client = createOddsClient()
@@ -88,17 +141,37 @@ async function ingestSport(
     // Insert each expectation
     for (const expectation of expectations) {
       try {
-        // Try to match to an existing game
-        const gameId = await matchGameId(db, expectation)
-        console.log(`[DEBUG] Event ${expectation.externalEventId}: gameId=${gameId}, type=${typeof gameId}`)
-
-        if (gameId) {
-          result.gamesMatched++
+        // Find or create home team
+        const homeTeamResult = await findOrCreateTeam(db, expectation.homeTeam, league)
+        if (homeTeamResult.created) {
+          result.teamsCreated++
+          console.log(`[${sportConfig.key}] Created team: ${expectation.homeTeam}`)
         }
 
-        // Build values object, only including gameId when it has a value
-        const insertValues = {
-          ...(gameId ? { gameId } : {}),
+        // Find or create away team
+        const awayTeamResult = await findOrCreateTeam(db, expectation.awayTeam, league)
+        if (awayTeamResult.created) {
+          result.teamsCreated++
+          console.log(`[${sportConfig.key}] Created team: ${expectation.awayTeam}`)
+        }
+
+        // Find or create game
+        const gameResult = await findOrCreateGame(
+          db,
+          homeTeamResult.id,
+          awayTeamResult.id,
+          expectation.commenceTime
+        )
+        if (gameResult.created) {
+          result.gamesCreated++
+          console.log(
+            `[${sportConfig.key}] Created game: ${expectation.awayTeam} @ ${expectation.homeTeam}`
+          )
+        }
+
+        // Insert the expectation with gameId
+        await db.insert(gameExpectations).values({
+          gameId: gameResult.id,
           sportKey: expectation.sportKey,
           externalEventId: expectation.externalEventId,
           commenceTime: expectation.commenceTime,
@@ -112,20 +185,13 @@ async function ingestSport(
           bookmaker: expectation.bookmaker,
           source: 'the-odds-api',
           capturedAt: new Date(),
-        }
-        console.log(`[DEBUG] Insert values keys: ${Object.keys(insertValues).join(', ')}`)
-        console.log(`[DEBUG] gameId in values: ${'gameId' in insertValues}`)
-
-        // Insert the expectation (always insert new records to track history)
-        await db.insert(gameExpectations).values(insertValues)
+        })
 
         result.expectationsWritten++
-        console.log(`[DEBUG] Successfully inserted event ${expectation.externalEventId}`)
       } catch (err) {
-        // Log detailed error information
-        console.error(`[DEBUG] Insert error for ${expectation.externalEventId}:`, err)
+        console.error(`[${sportConfig.key}] Error processing ${expectation.externalEventId}:`, err)
         const message =
-          err instanceof Error ? err.message : 'Unknown error inserting expectation'
+          err instanceof Error ? err.message : 'Unknown error'
         result.errors.push(`Event ${expectation.externalEventId}: ${message}`)
       }
     }
@@ -183,7 +249,8 @@ export default async function handler(req: Request, context: Context) {
       // Log sport results
       console.log(`  Events processed: ${result.eventsProcessed}`)
       console.log(`  Expectations written: ${result.expectationsWritten}`)
-      console.log(`  Games matched: ${result.gamesMatched}`)
+      console.log(`  Games created: ${result.gamesCreated}`)
+      console.log(`  Teams created: ${result.teamsCreated}`)
       if (result.errors.length > 0) {
         console.log(`  Errors: ${result.errors.length}`)
         result.errors.forEach((e) => console.log(`    - ${e}`))
@@ -195,13 +262,15 @@ export default async function handler(req: Request, context: Context) {
     // Summary
     const totalEvents = results.reduce((sum, r) => sum + r.eventsProcessed, 0)
     const totalWritten = results.reduce((sum, r) => sum + r.expectationsWritten, 0)
-    const totalMatched = results.reduce((sum, r) => sum + r.gamesMatched, 0)
+    const totalGamesCreated = results.reduce((sum, r) => sum + r.gamesCreated, 0)
+    const totalTeamsCreated = results.reduce((sum, r) => sum + r.teamsCreated, 0)
     const totalErrors = results.reduce((sum, r) => sum + r.errors.length, 0)
 
     console.log('\n=== Odds Ingestion Complete ===')
     console.log(`Total events processed: ${totalEvents}`)
     console.log(`Total expectations written: ${totalWritten}`)
-    console.log(`Total games matched: ${totalMatched}`)
+    console.log(`Total games created: ${totalGamesCreated}`)
+    console.log(`Total teams created: ${totalTeamsCreated}`)
     console.log(`Total errors: ${totalErrors}`)
     console.log(`Duration: ${duration}ms`)
 
@@ -212,7 +281,8 @@ export default async function handler(req: Request, context: Context) {
         summary: {
           totalEvents,
           totalWritten,
-          totalMatched,
+          totalGamesCreated,
+          totalTeamsCreated,
           totalErrors,
           durationMs: duration,
         },
