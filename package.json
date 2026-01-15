@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:netlify": "npm run db:migrate && next build",
     "start": "next start",
     "export": "next build && next export",
     "db:generate": "drizzle-kit generate",
