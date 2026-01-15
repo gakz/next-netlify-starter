@@ -2,13 +2,13 @@ import type { Config, Context } from '@netlify/functions'
 import { neon } from '@neondatabase/serverless'
 import { drizzle } from 'drizzle-orm/neon-http'
 import { eq, and, gte, lte } from 'drizzle-orm'
-import { gameExpectations, games, teams } from '../../db/schema'
+import { gameExpectations, games, teams, gameStateSnapshots } from '../../db/schema'
 import {
   createOddsClient,
   normalizeEvents,
   SUPPORTED_SPORTS,
   OddsAPIError,
-  type NormalizedExpectation,
+  type ScoreEvent,
 } from '../../lib/odds-api'
 
 // Ingestion interval: every 15 minutes
@@ -19,6 +19,7 @@ interface IngestionResult {
   expectationsWritten: number
   gamesCreated: number
   teamsCreated: number
+  scoresUpdated: number
   errors: string[]
 }
 
@@ -108,6 +109,117 @@ async function findOrCreateGame(
 }
 
 /**
+ * Process scores for games and update their status/snapshots
+ */
+async function processScores(
+  db: ReturnType<typeof drizzle>,
+  sportKey: string,
+  scoreEvents: ScoreEvent[]
+): Promise<number> {
+  let updated = 0
+
+  for (const event of scoreEvents) {
+    try {
+      // Find the game by matching teams
+      const homeTeam = await db
+        .select()
+        .from(teams)
+        .where(eq(teams.name, event.home_team))
+        .limit(1)
+
+      const awayTeam = await db
+        .select()
+        .from(teams)
+        .where(eq(teams.name, event.away_team))
+        .limit(1)
+
+      if (homeTeam.length === 0 || awayTeam.length === 0) continue
+
+      // Find the game within time window
+      const commenceTime = new Date(event.commence_time)
+      const windowStart = new Date(commenceTime.getTime() - 12 * 60 * 60 * 1000)
+      const windowEnd = new Date(commenceTime.getTime() + 12 * 60 * 60 * 1000)
+
+      const existingGames = await db
+        .select()
+        .from(games)
+        .where(
+          and(
+            eq(games.homeTeamId, homeTeam[0].id),
+            eq(games.awayTeamId, awayTeam[0].id),
+            gte(games.scheduledTime, windowStart),
+            lte(games.scheduledTime, windowEnd)
+          )
+        )
+        .limit(1)
+
+      if (existingGames.length === 0) continue
+
+      const game = existingGames[0]
+
+      // Parse scores
+      let homeScore: number | null = null
+      let awayScore: number | null = null
+
+      if (event.scores) {
+        for (const score of event.scores) {
+          if (score.name === event.home_team && score.score) {
+            homeScore = parseInt(score.score, 10)
+          } else if (score.name === event.away_team && score.score) {
+            awayScore = parseInt(score.score, 10)
+          }
+        }
+      }
+
+      // Determine game status
+      const now = new Date()
+      const hasStarted = commenceTime <= now
+      const newStatus = event.completed
+        ? 'completed'
+        : hasStarted
+          ? 'live'
+          : 'upcoming'
+
+      // Update game status if changed
+      if (game.status !== newStatus) {
+        await db
+          .update(games)
+          .set({
+            status: newStatus,
+            completedAt: event.completed ? now : null,
+          })
+          .where(eq(games.id, game.id))
+      }
+
+      // Create snapshot if we have scores
+      if (homeScore !== null && awayScore !== null) {
+        const scoreDiff = Math.abs(homeScore - awayScore)
+        const isClose = scoreDiff <= 10
+        const tensionScore = isClose ? Math.min(100, 50 + (10 - scoreDiff) * 5) : Math.max(0, 50 - scoreDiff)
+
+        await db.insert(gameStateSnapshots).values({
+          gameId: game.id,
+          capturedAt: now,
+          tensionScore,
+          momentumShifts: 0,
+          leadChanges: 0,
+          closeFinish: event.completed && scoreDiff <= 5,
+          isFinal: event.completed,
+          homeScore,
+          awayScore,
+        })
+
+        updated++
+      }
+    } catch (err) {
+      console.error(`[${sportKey}] Error processing score for ${event.id}:`, err)
+    }
+  }
+
+  return updated
+}
+
+/**
  * Ingest odds for a single sport
  */
 async function ingestSport(
@@ -120,6 +232,7 @@ async function ingestSport(
     expectationsWritten: 0,
     gamesCreated: 0,
     teamsCreated: 0,
+    scoresUpdated: 0,
     errors: [],
   }
 
@@ -195,6 +308,22 @@ async function ingestSport(
         result.errors.push(`Event ${expectation.externalEventId}: ${message}`)
       }
     }
+
+    // Also fetch and process scores
+    try {
+      const { events: scoreEvents, remainingRequests: scoresRemaining } =
+        await client.getScores(sportConfig.key, 1)
+      console.log(
+        `[${sportConfig.key}] Fetched ${scoreEvents.length} score events. API requests remaining: ${scoresRemaining}`
+      )
+
+      result.scoresUpdated = await processScores(db, sportConfig.key, scoreEvents)
+    } catch (scoreErr) {
+      console.error(`[${sportConfig.key}] Error fetching scores:`, scoreErr)
+      result.errors.push(
+        `Scores fetch error: ${scoreErr instanceof Error ? scoreErr.message : 'Unknown'}`
+      )
+    }
   } catch (err) {
     if (err instanceof OddsAPIError) {
       result.errors.push(`API Error: ${err.message}`)
@@ -251,6 +380,7 @@ export default async function handler(req: Request, context: Context) {
       console.log(`  Expectations written: ${result.expectationsWritten}`)
       console.log(`  Games created: ${result.gamesCreated}`)
       console.log(`  Teams created: ${result.teamsCreated}`)
+      console.log(`  Scores updated: ${result.scoresUpdated}`)
       if (result.errors.length > 0) {
         console.log(`  Errors: ${result.errors.length}`)
         result.errors.forEach((e) => console.log(`    - ${e}`))
@@ -264,6 +394,7 @@ export default async function handler(req: Request, context: Context) {
     const totalWritten = results.reduce((sum, r) => sum + r.expectationsWritten, 0)
     const totalGamesCreated = results.reduce((sum, r) => sum + r.gamesCreated, 0)
     const totalTeamsCreated = results.reduce((sum, r) => sum + r.teamsCreated, 0)
+    const totalScoresUpdated = results.reduce((sum, r) => sum + r.scoresUpdated, 0)
     const totalErrors = results.reduce((sum, r) => sum + r.errors.length, 0)
 
     console.log('\n=== Odds Ingestion Complete ===')
@@ -271,6 +402,7 @@ export default async function handler(req: Request, context: Context) {
     console.log(`Total expectations written: ${totalWritten}`)
     console.log(`Total games created: ${totalGamesCreated}`)
     console.log(`Total teams created: ${totalTeamsCreated}`)
+    console.log(`Total scores updated: ${totalScoresUpdated}`)
     console.log(`Total errors: ${totalErrors}`)
     console.log(`Duration: ${duration}ms`)
 
@@ -283,6 +415,7 @@ export default async function handler(req: Request, context: Context) {
           totalWritten,
           totalGamesCreated,
           totalTeamsCreated,
+          totalScoresUpdated,
           totalErrors,
           durationMs: duration,
         },

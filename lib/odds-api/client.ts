@@ -1,8 +1,10 @@
 import {
   SportsResponseSchema,
   OddsResponseSchema,
+  ScoresResponseSchema,
   type Sport,
   type Event,
+  type ScoreEvent,
   type SportConfig,
 } from './types'
 
@@ -110,6 +112,36 @@ export class OddsAPIClient {
     if (!parsed.success) {
       throw new OddsAPIError(
         `Failed to parse odds response: ${parsed.error.message}`
+      )
+    }
+
+    return { events: parsed.data, remainingRequests }
+  }
+
+  /**
+   * Fetch live and recently completed scores for a sport
+   * daysFrom: number of days in the past to include completed games (max 3)
+   */
+  async getScores(
+    sportKey: string,
+    daysFrom: number = 1
+  ): Promise<{
+    events: ScoreEvent[]
+    remainingRequests: string | null
+  }> {
+    const { data, remainingRequests } = await this.request<unknown>(
+      `/sports/${sportKey}/scores`,
+      {
+        daysFrom: String(Math.min(daysFrom, 3)),
+        dateFormat: 'iso',
+      }
+    )
+
+    const parsed = ScoresResponseSchema.safeParse(data)
+
+    if (!parsed.success) {
+      throw new OddsAPIError(
+        `Failed to parse scores response: ${parsed.error.message}`
       )
     }
 

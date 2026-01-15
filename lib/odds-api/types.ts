@@ -59,6 +59,28 @@ export type Market = z.infer<typeof MarketSchema>
 export type Bookmaker = z.infer<typeof BookmakerSchema>
 export type Event = z.infer<typeof EventSchema>
 
+// Scores API types
+export const ScoreSchema = z.object({
+  name: z.string(),
+  score: z.string().nullable(),
+})
+
+export const ScoreEventSchema = z.object({
+  id: z.string(),
+  sport_key: z.string(),
+  sport_title: z.string(),
+  commence_time: z.string(),
+  home_team: z.string(),
+  away_team: z.string(),
+  completed: z.boolean(),
+  scores: z.array(ScoreSchema).nullable(),
+  last_update: z.string().nullable().optional(),
+})
+
+export const ScoresResponseSchema = z.array(ScoreEventSchema)
+
+export type ScoreEvent = z.infer<typeof ScoreEventSchema>
+
 // Internal normalized format for database insertion
 export interface NormalizedExpectation {
   externalEventId: string
