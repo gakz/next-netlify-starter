@@ -129,14 +129,31 @@ export default function GameCard({ game, isFavorite = false, showScores = false 
   return (
     <div
       className={`
-        bg-white border border-stone-200 rounded-lg px-4
+        relative bg-white border border-stone-200 rounded-lg px-4 pr-16
         dark:bg-stone-800 dark:border-stone-700
         ${priorityBorderStyles[game.priority]}
         ${priorityCardStyles[game.priority]}
       `}
     >
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
-        <div className="flex-1">
+      {/* Rating badge - primary visual anchor */}
+      <div className="absolute top-1/2 right-3 -translate-y-1/2">
+        <div
+          className={`
+            flex items-center justify-center
+            w-11 h-11 rounded-full
+            bg-stone-100 dark:bg-stone-700
+            border border-stone-200 dark:border-stone-600
+          `}
+        >
+          <span className="text-lg font-bold text-stone-800 dark:text-stone-100">
+            {formatScore(watchabilityScore)}
+          </span>
+        </div>
+      </div>
+
+      {/* Card content */}
+      <div className="flex flex-col gap-1">
+        <div className="flex items-center gap-2">
           <h3
             className={`text-base text-stone-900 dark:text-stone-100 ${
               isFavorite ? 'font-semibold' : 'font-medium'
@@ -144,18 +161,6 @@ export default function GameCard({ game, isFavorite = false, showScores = false 
           >
             {game.awayTeam} vs {game.homeTeam}
           </h3>
-          <p className="text-sm text-stone-500 mt-1 dark:text-stone-400">
-            {isCompleted && formatRelativeDate(game.completedAt)}
-            {isLive && formatScheduledTime(game.scheduledTime)}
-            {isUpcoming && formatScheduledTime(game.scheduledTime)}
-          </p>
-        </div>
-        <div className="flex items-center gap-3 whitespace-nowrap">
-          {showScores && hasScores && (
-            <span className="text-lg font-semibold text-stone-900 dark:text-stone-100">
-              {game.awayScore} - {game.homeScore}
-            </span>
-          )}
           {statusText && (
             <span
               className={`text-xs font-semibold px-2 py-0.5 rounded ${
@@ -167,9 +172,18 @@ export default function GameCard({ game, isFavorite = false, showScores = false 
               {statusText}
             </span>
           )}
-          <span className="text-sm font-medium text-stone-500 dark:text-stone-400">
-            {formatScore(watchabilityScore)}
-          </span>
+        </div>
+        <div className="flex items-center gap-3">
+          <p className="text-sm text-stone-500 dark:text-stone-400">
+            {isCompleted && formatRelativeDate(game.completedAt)}
+            {isLive && formatScheduledTime(game.scheduledTime)}
+            {isUpcoming && formatScheduledTime(game.scheduledTime)}
+          </p>
+          {showScores && hasScores && (
+            <span className="text-sm font-semibold text-stone-700 dark:text-stone-300">
+              {game.awayScore} - {game.homeScore}
+            </span>
+          )}
         </div>
       </div>
     </div>
