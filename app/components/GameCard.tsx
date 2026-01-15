@@ -116,6 +116,123 @@ function formatScheduledTime(date: Date | null): string {
   return `${date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}, ${timeStr}`
 }
 
+/**
+ * Rating badge component with semantic ring indicator
+ * The ring fill represents the rating on a 1-10 scale
+ */
+function RatingBadge({
+  score,
+  isLive,
+  isFavorite,
+}: {
+  score: number
+  isLive: boolean
+  isFavorite: boolean
+}) {
+  // Calculate ring progress (score 1-10 maps to 0-100%)
+  const progress = (score / 10) * 100
+
+  // Context-aware emphasis
+  const isHighRating = score >= 8
+  const isLowRating = score < 5
+
+  // Determine badge styling based on context
+  const getBadgeStyles = () => {
+    if (isFavorite) {
+      // Your Teams: reduced emphasis, contextual feel
+      return {
+        size: 'w-9 h-9',
+        textSize: 'text-sm',
+        ringColor: 'stroke-stone-300 dark:stroke-stone-500',
+        bgColor: 'bg-stone-50 dark:bg-stone-700/50',
+        textColor: 'text-stone-600 dark:text-stone-300',
+      }
+    }
+
+    if (isLive && isHighRating) {
+      // Live + high rating: elevated emphasis
+      return {
+        size: 'w-11 h-11',
+        textSize: 'text-lg',
+        ringColor: 'stroke-stone-500 dark:stroke-stone-300',
+        bgColor: 'bg-stone-100 dark:bg-stone-700',
+        textColor: 'text-stone-900 dark:text-stone-50',
+      }
+    }
+
+    if (isLive && isLowRating) {
+      // Live + low rating: reduced emphasis
+      return {
+        size: 'w-10 h-10',
+        textSize: 'text-base',
+        ringColor: 'stroke-stone-300 dark:stroke-stone-600',
+        bgColor: 'bg-stone-50 dark:bg-stone-700/70',
+        textColor: 'text-stone-500 dark:text-stone-400',
+      }
+    }
+
+    // Default: standard emphasis
+    return {
+      size: 'w-10 h-10',
+      textSize: 'text-base',
+      ringColor: 'stroke-stone-400 dark:stroke-stone-500',
+      bgColor: 'bg-stone-100 dark:bg-stone-700',
+      textColor: 'text-stone-800 dark:text-stone-100',
+    }
+  }
+
+  const styles = getBadgeStyles()
+  const svgSize = isFavorite ? 36 : isLive && isHighRating ? 44 : 40
+  const radius = isFavorite ? 15 : isLive && isHighRating ? 19 : 17
+  const actualCircumference = 2 * Math.PI * radius
+  const actualOffset = actualCircumference - (progress / 100) * actualCircumference
+
+  return (
+    <div className={`relative ${styles.size} flex items-center justify-center`}>
+      {/* Background ring (track) */}
+      <svg
+        className="absolute inset-0"
+        viewBox={`0 0 ${svgSize} ${svgSize}`}
+        fill="none"
+      >
+        <circle
+          cx={svgSize / 2}
+          cy={svgSize / 2}
+          r={radius}
+          className="stroke-stone-200 dark:stroke-stone-600"
+          strokeWidth="2"
+          fill="none"
+        />
+        {/* Progress ring */}
+        <circle
+          cx={svgSize / 2}
+          cy={svgSize / 2}
+          r={radius}
+          className={styles.ringColor}
+          strokeWidth="2"
+          fill="none"
+          strokeLinecap="round"
+          strokeDasharray={actualCircumference}
+          strokeDashoffset={actualOffset}
+          transform={`rotate(-90 ${svgSize / 2} ${svgSize / 2})`}
+        />
+      </svg>
+      {/* Inner badge */}
+      <div
+        className={`
+          relative z-10 flex items-center justify-center
+          w-[calc(100%-6px)] h-[calc(100%-6px)] rounded-full
+          ${styles.bgColor}
+        `}
+      >
+        <span className={`${styles.textSize} font-bold ${styles.textColor}`}>
+          {formatScore(score)}
+        </span>
+      </div>
+    </div>
+  )
+}
+
 export default function GameCard({ game, isFavorite = false, showScores = false }: GameCardProps) {
   const isCompleted = game.status === 'completed'
   const isLive = game.status === 'live'
@@ -126,40 +243,25 @@ export default function GameCard({ game, isFavorite = false, showScores = false 
   return (
     <div
       className={`
-        relative bg-white border border-stone-200 rounded-lg px-4 pr-16
+        flex items-center gap-3
+        bg-white border border-stone-200 rounded-lg px-4
         dark:bg-stone-800 dark:border-stone-700
         ${priorityBorderStyles[game.priority]}
         ${priorityCardStyles[game.priority]}
       `}
     >
-      {/* Rating badge - primary visual anchor */}
-      <div className="absolute top-1/2 right-3 -translate-y-1/2">
-        <div
-          className={`
-            flex items-center justify-center
-            w-11 h-11 rounded-full
-            bg-stone-100 dark:bg-stone-700
-            border border-stone-200 dark:border-stone-600
-          `}
-        >
-          <span className="text-lg font-bold text-stone-800 dark:text-stone-100">
-            {formatScore(watchabilityScore)}
-          </span>
-        </div>
-      </div>
-
       {/* Card content */}
-      <div className="flex flex-col gap-1">
+      <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <h3
-            className={`text-base text-stone-900 dark:text-stone-100 ${
+            className={`text-base text-stone-900 dark:text-stone-100 truncate ${
               isFavorite ? 'font-semibold' : 'font-medium'
             }`}
           >
             {game.awayTeam} vs {game.homeTeam}
           </h3>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 mt-0.5">
           {isLive ? (
             <span className="text-xs font-semibold px-2 py-0.5 rounded bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
               Live
@@ -185,6 +287,13 @@ export default function GameCard({ game, isFavorite = false, showScores = false 
           )}
         </div>
       </div>
+
+      {/* Rating badge - structurally integrated */}
+      <RatingBadge
+        score={watchabilityScore}
+        isLive={isLive}
+        isFavorite={isFavorite}
+      />
     </div>
   )
 }
