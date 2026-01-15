@@ -5,11 +5,18 @@ import Link from 'next/link'
 import GameCard, { type Game, type Priority } from './GameCard'
 
 type DayFilter = 'today' | 'yesterday' | 'last-7-days'
+type SportFilter = 'all' | 'NBA' | 'NFL'
 
 const dayFilterOptions: { value: DayFilter; label: string }[] = [
   { value: 'today', label: 'Today' },
   { value: 'yesterday', label: 'Yesterday' },
   { value: 'last-7-days', label: 'Last 7 Days' },
+]
+
+const sportFilterOptions: { value: SportFilter; label: string }[] = [
+  { value: 'all', label: 'All' },
+  { value: 'NBA', label: 'NBA' },
+  { value: 'NFL', label: 'NFL' },
 ]
 
 interface GameListProps {
@@ -39,6 +46,36 @@ function DayFilterNav({
           className={`flex-1 sm:flex-none px-4 py-2 text-sm font-medium rounded-md transition-colors ${
             selectedFilter === option.value
               ? 'bg-stone-200 text-stone-900 dark:bg-stone-700 dark:text-stone-100'
+              : 'text-stone-600 hover:bg-stone-100 hover:text-stone-800 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-stone-200'
+          }`}
+        >
+          {option.label}
+        </button>
+      ))}
+    </nav>
+  )
+}
+
+function SportFilterNav({
+  selectedFilter,
+  onFilterChange,
+  className = '',
+}: {
+  selectedFilter: SportFilter
+  onFilterChange: (filter: SportFilter) => void
+  className?: string
+}) {
+  return (
+    <nav className={`flex gap-1 ${className}`} role="tablist" aria-label="Filter by sport">
+      {sportFilterOptions.map((option) => (
+        <button
+          key={option.value}
+          onClick={() => onFilterChange(option.value)}
+          role="tab"
+          aria-selected={selectedFilter === option.value}
+          className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+            selectedFilter === option.value
+              ? 'bg-stone-800 text-white dark:bg-stone-200 dark:text-stone-900'
               : 'text-stone-600 hover:bg-stone-100 hover:text-stone-800 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-stone-200'
           }`}
         >
@@ -121,17 +158,44 @@ function filterCompletedByDay(games: Game[], filter: DayFilter): Game[] {
   })
 }
 
+/**
+ * Filter upcoming games to only include those within the next N days
+ */
+function filterUpcomingByDaysAhead(games: Game[], daysAhead: number): Game[] {
+  const now = new Date()
+
+  return games.filter((game) => {
+    if (game.status !== 'upcoming' || !game.scheduledTime) return false
+    const scheduledTime = new Date(game.scheduledTime)
+    const dayDiff = getCalendarDayDiff(scheduledTime, now)
+
+    return dayDiff >= 0 && dayDiff <= daysAhead
+  })
+}
+
 export default function GameList({ initialGames, initialFavorites, lastScoresUpdate, isLoggedIn }: GameListProps) {
   const [selectedFilter, setSelectedFilter] = useState<DayFilter>('last-7-days')
+  const [selectedSport, setSelectedSport] = useState<SportFilter>('all')
   const [showScores, setShowScores] = useState(false)
 
   const { favoriteGames, otherGames } = useMemo(() => {
-    // Get live and upcoming games (not filtered by day)
-    const liveGames = initialGames.filter((g) => g.status === 'live')
-    const upcomingGames = initialGames.filter((g) => g.status === 'upcoming')
+    // First filter by sport
+    const sportFilteredGames = selectedSport === 'all'
+      ? initialGames
+      : initialGames.filter((g) => g.league === selectedSport)
+
+    // Get live games (always shown)
+    const liveGames = sportFilteredGames.filter((g) => g.status === 'live')
+
+    // Get upcoming games - NFL shows full week ahead
+    const upcomingGames = selectedSport === 'NFL'
+      ? filterUpcomingByDaysAhead(sportFilteredGames, 7)
+      : sportFilteredGames.filter((g) => g.status === 'upcoming')
 
     // Get completed games filtered by day
-    const filteredCompletedGames = filterCompletedByDay(initialGames, selectedFilter)
+    // NFL shows all games within the week regardless of day filter
+    const effectiveDayFilter = selectedSport === 'NFL' ? 'last-7-days' : selectedFilter
+    const filteredCompletedGames = filterCompletedByDay(sportFilteredGames, effectiveDayFilter)
 
     // Combine all games for display
     const allGamesForDisplay = [...filteredCompletedGames, ...liveGames, ...upcomingGames]
@@ -144,9 +208,7 @@ export default function GameList({ initialGames, initialFavorites, lastScoresUpd
       favoriteGames: orderByStatus(favorites),
       otherGames: orderByStatus(others),
     }
-  }, [initialGames, initialFavorites, selectedFilter])
-
-  const hasGames = favoriteGames.length > 0 || otherGames.length > 0
+  }, [initialGames, initialFavorites, selectedFilter, selectedSport])
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -194,11 +256,6 @@ export default function GameList({ initialGames, initialFavorites, lastScoresUpd
       {/* Main Content */}
       <main className="flex-1 min-w-0">
         <div className="max-w-2xl mx-auto px-4 py-6">
-        {!hasGames ? (
-          <div className="text-center py-12">
-            <p className="text-stone-500 dark:text-stone-400">No games found.</p>
-          </div>
-        ) : (
           <div className="space-y-8">
             {/* Your Teams Section */}
             {favoriteGames.length > 0 && (
@@ -237,20 +294,29 @@ export default function GameList({ initialGames, initialFavorites, lastScoresUpd
             )}
 
             {/* Other Games Section */}
-            {otherGames.length > 0 && (
-              <section>
-                <h2 className="text-sm font-medium text-stone-600 dark:text-stone-400 uppercase tracking-wide mb-3">
+            <section>
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-sm font-medium text-stone-600 dark:text-stone-400 uppercase tracking-wide">
                   Other Games
                 </h2>
+                <SportFilterNav
+                  selectedFilter={selectedSport}
+                  onFilterChange={setSelectedSport}
+                />
+              </div>
+              {otherGames.length > 0 ? (
                 <div className="space-y-2">
                   {otherGames.map((game) => (
                     <GameCard key={game.id} game={game} showScores={showScores} />
                   ))}
                 </div>
-              </section>
-            )}
+              ) : (
+                <p className="text-sm text-stone-500 dark:text-stone-400 py-4 text-center">
+                  No {selectedSport === 'all' ? '' : selectedSport + ' '}games found.
+                </p>
+              )}
+            </section>
           </div>
-        )}
         </div>
       </main>
 

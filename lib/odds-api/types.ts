@@ -110,12 +110,12 @@ export const SUPPORTED_SPORTS: SportConfig[] = [
     name: 'NBA',
     markets: ['spreads', 'totals'],
   },
+  {
+    key: 'americanfootball_nfl',
+    name: 'NFL',
+    markets: ['spreads', 'totals'],
+  },
   // Future sports can be added here:
-  // {
-  //   key: 'americanfootball_nfl',
-  //   name: 'NFL',
-  //   markets: ['spreads', 'totals'],
-  // },
   // {
   //   key: 'baseball_mlb',
   //   name: 'MLB',

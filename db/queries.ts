@@ -14,6 +14,7 @@ export interface GameWithDetails {
   id: string
   awayTeam: string
   homeTeam: string
+  league: string // League of the game (NBA, NFL, MLB, etc.)
   status: GameStatus
   priority: Priority
   scheduledTime: Date | null
@@ -72,6 +73,7 @@ export async function getGames(): Promise<GameWithDetails[]> {
       id: game.id,
       awayTeam: game.awayTeam.name,
       homeTeam: game.homeTeam.name,
+      league: game.homeTeam.league,
       status: game.status as GameStatus,
       priority: derivePriority(latestSnapshot),
       scheduledTime: game.scheduledTime,
@@ -108,6 +110,7 @@ export async function getGamesByStatus(status: GameStatus): Promise<GameWithDeta
       id: game.id,
       awayTeam: game.awayTeam.name,
       homeTeam: game.homeTeam.name,
+      league: game.homeTeam.league,
       status: game.status as GameStatus,
       priority: derivePriority(latestSnapshot),
       scheduledTime: game.scheduledTime,
@@ -148,6 +151,7 @@ export async function getCompletedGames(since?: Date): Promise<GameWithDetails[]
       id: game.id,
       awayTeam: game.awayTeam.name,
       homeTeam: game.homeTeam.name,
+      league: game.homeTeam.league,
       status: game.status as GameStatus,
       priority: derivePriority(latestSnapshot),
       scheduledTime: game.scheduledTime,

@@ -44,6 +44,14 @@ async function seed() {
       { name: 'Los Angeles Dodgers', league: 'MLB' },
       { name: 'San Francisco Giants', league: 'MLB' },
       { name: 'Toronto Blue Jays', league: 'MLB' },
+      // NFL
+      { name: 'Kansas City Chiefs', league: 'NFL' },
+      { name: 'San Francisco 49ers', league: 'NFL' },
+      { name: 'Philadelphia Eagles', league: 'NFL' },
+      { name: 'Dallas Cowboys', league: 'NFL' },
+      { name: 'Buffalo Bills', league: 'NFL' },
+      { name: 'Miami Dolphins', league: 'NFL' },
+      { name: 'Detroit Lions', league: 'NFL' },
     ])
     .returning()
 
@@ -129,6 +137,35 @@ async function seed() {
         scheduledTime: twoDaysAgo,
         completedAt: twoDaysAgo,
       },
+      // NFL - Upcoming games
+      {
+        awayTeamId: findTeam('Kansas City Chiefs').id,
+        homeTeamId: findTeam('Buffalo Bills').id,
+        status: 'upcoming',
+        scheduledTime: tomorrow,
+      },
+      // NFL - Live games
+      {
+        awayTeamId: findTeam('Philadelphia Eagles').id,
+        homeTeamId: findTeam('Dallas Cowboys').id,
+        status: 'live',
+        scheduledTime: now,
+      },
+      // NFL - Completed games
+      {
+        awayTeamId: findTeam('San Francisco 49ers').id,
+        homeTeamId: findTeam('Detroit Lions').id,
+        status: 'completed',
+        scheduledTime: yesterday,
+        completedAt: yesterday,
+      },
+      {
+        awayTeamId: findTeam('Miami Dolphins').id,
+        homeTeamId: findTeam('Buffalo Bills').id,
+        status: 'completed',
+        scheduledTime: twoDaysAgo,
+        completedAt: twoDaysAgo,
+      },
     ])
     .returning()
 
@@ -149,6 +186,11 @@ async function seed() {
     { gameIndex: 6, tensionScore: 90, momentumShifts: 6, leadChanges: 5, closeFinish: true, isFinal: true }, // High
     { gameIndex: 7, tensionScore: 25, momentumShifts: 1, leadChanges: 0, closeFinish: false, isFinal: true }, // Low
     { gameIndex: 8, tensionScore: 20, momentumShifts: 0, leadChanges: 0, closeFinish: false, isFinal: true }, // Low
+    // NFL games
+    { gameIndex: 9, tensionScore: 70, momentumShifts: 0, leadChanges: 0, closeFinish: false, isFinal: false }, // Upcoming - Chiefs vs Bills
+    { gameIndex: 10, tensionScore: 85, momentumShifts: 3, leadChanges: 2, closeFinish: false, isFinal: false }, // Live - Eagles vs Cowboys
+    { gameIndex: 11, tensionScore: 95, momentumShifts: 5, leadChanges: 4, closeFinish: true, isFinal: true }, // Completed - High - 49ers vs Lions
+    { gameIndex: 12, tensionScore: 40, momentumShifts: 1, leadChanges: 1, closeFinish: false, isFinal: true }, // Completed - Medium - Dolphins vs Bills
   ]
 
   // Add multiple snapshots for live games to simulate progression

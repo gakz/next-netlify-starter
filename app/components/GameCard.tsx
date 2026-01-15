@@ -12,6 +12,7 @@ export interface Game {
   id: string
   awayTeam: string
   homeTeam: string
+  league: string // League of the game (NBA, NFL, MLB, etc.)
   status: GameStatus
   priority: Priority
   scheduledTime: Date | null
