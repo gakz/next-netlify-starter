@@ -107,6 +107,26 @@ export async function toggleFavoriteTeam(teamId: string, isFavorite: boolean): P
   }
 }
 
+// Mock team records
+const mockTeamRecords: Record<string, { wins: number; losses: number }> = {
+  'Boston Celtics': { wins: 45, losses: 12 },
+  'Philadelphia 76ers': { wins: 38, losses: 19 },
+  'Miami Heat': { wins: 32, losses: 25 },
+  'Denver Nuggets': { wins: 42, losses: 15 },
+  'Phoenix Suns': { wins: 35, losses: 22 },
+  'Los Angeles Lakers': { wins: 30, losses: 27 },
+  'Golden State Warriors': { wins: 28, losses: 29 },
+  'New York Yankees': { wins: 70, losses: 45 },
+  'Toronto Blue Jays': { wins: 65, losses: 50 },
+  'Boston Red Sox': { wins: 55, losses: 60 },
+  'Los Angeles Dodgers': { wins: 75, losses: 40 },
+  'San Francisco Giants': { wins: 60, losses: 55 },
+}
+
+function getMockRecord(teamName: string): { wins: number; losses: number } | null {
+  return mockTeamRecords[teamName] ?? null
+}
+
 // Mock data fallback
 function getMockGames(): GameWithDetails[] {
   const now = new Date()
@@ -115,21 +135,23 @@ function getMockGames(): GameWithDetails[] {
   const twoDaysAgo = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000)
 
   return [
-    // Upcoming - spread: negative = home favorite, close spread = competitive
-    { id: 'u1', awayTeam: 'Boston Celtics', homeTeam: 'Philadelphia 76ers', status: 'upcoming' as GameStatus, priority: 'high' as Priority, scheduledTime: tomorrow, completedAt: null, homeScore: null, awayScore: null, spread: -2.5, totalValue: 218.5 },
-    { id: 'u2', awayTeam: 'Los Angeles Dodgers', homeTeam: 'San Francisco Giants', status: 'upcoming' as GameStatus, priority: 'medium' as Priority, scheduledTime: tomorrow, completedAt: null, homeScore: null, awayScore: null, spread: -1.5, totalValue: 8.5 },
-    { id: 'u3', awayTeam: 'Miami Heat', homeTeam: 'Denver Nuggets', status: 'upcoming' as GameStatus, priority: 'low' as Priority, scheduledTime: tomorrow, completedAt: null, homeScore: null, awayScore: null, spread: -9.5, totalValue: 215.0 },
+    // Upcoming - spread + records: Two top teams (Celtics vs 76ers) - close game expected
+    { id: 'u1', awayTeam: 'Boston Celtics', homeTeam: 'Philadelphia 76ers', status: 'upcoming' as GameStatus, priority: 'high' as Priority, scheduledTime: tomorrow, completedAt: null, homeScore: null, awayScore: null, spread: -2.5, totalValue: 218.5, awayTeamRecord: getMockRecord('Boston Celtics'), homeTeamRecord: getMockRecord('Philadelphia 76ers') },
+    // Upcoming - close spread, competitive records
+    { id: 'u2', awayTeam: 'Los Angeles Dodgers', homeTeam: 'San Francisco Giants', status: 'upcoming' as GameStatus, priority: 'medium' as Priority, scheduledTime: tomorrow, completedAt: null, homeScore: null, awayScore: null, spread: -1.5, totalValue: 8.5, awayTeamRecord: getMockRecord('Los Angeles Dodgers'), homeTeamRecord: getMockRecord('San Francisco Giants') },
+    // Upcoming - large spread, mismatch (Heat vs dominant Nuggets)
+    { id: 'u3', awayTeam: 'Miami Heat', homeTeam: 'Denver Nuggets', status: 'upcoming' as GameStatus, priority: 'low' as Priority, scheduledTime: tomorrow, completedAt: null, homeScore: null, awayScore: null, spread: -9.5, totalValue: 215.0, awayTeamRecord: getMockRecord('Miami Heat'), homeTeamRecord: getMockRecord('Denver Nuggets') },
     // Live
-    { id: 'l1', awayTeam: 'New York Yankees', homeTeam: 'Toronto Blue Jays', status: 'live' as GameStatus, priority: 'high' as Priority, scheduledTime: now, completedAt: null, homeScore: 3, awayScore: 5, spread: null, totalValue: null },
-    { id: 'l2', awayTeam: 'Denver Nuggets', homeTeam: 'Phoenix Suns', status: 'live' as GameStatus, priority: 'medium' as Priority, scheduledTime: now, completedAt: null, homeScore: 87, awayScore: 92, spread: null, totalValue: null },
+    { id: 'l1', awayTeam: 'New York Yankees', homeTeam: 'Toronto Blue Jays', status: 'live' as GameStatus, priority: 'high' as Priority, scheduledTime: now, completedAt: null, homeScore: 3, awayScore: 5, spread: null, totalValue: null, awayTeamRecord: getMockRecord('New York Yankees'), homeTeamRecord: getMockRecord('Toronto Blue Jays') },
+    { id: 'l2', awayTeam: 'Denver Nuggets', homeTeam: 'Phoenix Suns', status: 'live' as GameStatus, priority: 'medium' as Priority, scheduledTime: now, completedAt: null, homeScore: 87, awayScore: 92, spread: null, totalValue: null, awayTeamRecord: getMockRecord('Denver Nuggets'), homeTeamRecord: getMockRecord('Phoenix Suns') },
     // Completed - today
-    { id: 'c1', awayTeam: 'Boston Celtics', homeTeam: 'Miami Heat', status: 'completed' as GameStatus, priority: 'high' as Priority, scheduledTime: now, completedAt: now, homeScore: 98, awayScore: 102, spread: null, totalValue: null },
-    { id: 'c2', awayTeam: 'Los Angeles Lakers', homeTeam: 'Golden State Warriors', status: 'completed' as GameStatus, priority: 'medium' as Priority, scheduledTime: now, completedAt: now, homeScore: 115, awayScore: 108, spread: null, totalValue: null },
+    { id: 'c1', awayTeam: 'Boston Celtics', homeTeam: 'Miami Heat', status: 'completed' as GameStatus, priority: 'high' as Priority, scheduledTime: now, completedAt: now, homeScore: 98, awayScore: 102, spread: null, totalValue: null, awayTeamRecord: getMockRecord('Boston Celtics'), homeTeamRecord: getMockRecord('Miami Heat') },
+    { id: 'c2', awayTeam: 'Los Angeles Lakers', homeTeam: 'Golden State Warriors', status: 'completed' as GameStatus, priority: 'medium' as Priority, scheduledTime: now, completedAt: now, homeScore: 115, awayScore: 108, spread: null, totalValue: null, awayTeamRecord: getMockRecord('Los Angeles Lakers'), homeTeamRecord: getMockRecord('Golden State Warriors') },
     // Completed - yesterday
-    { id: 'c3', awayTeam: 'New York Yankees', homeTeam: 'Boston Red Sox', status: 'completed' as GameStatus, priority: 'high' as Priority, scheduledTime: yesterday, completedAt: yesterday, homeScore: 4, awayScore: 7, spread: null, totalValue: null },
-    { id: 'c4', awayTeam: 'Philadelphia 76ers', homeTeam: 'Miami Heat', status: 'completed' as GameStatus, priority: 'low' as Priority, scheduledTime: yesterday, completedAt: yesterday, homeScore: 110, awayScore: 95, spread: null, totalValue: null },
+    { id: 'c3', awayTeam: 'New York Yankees', homeTeam: 'Boston Red Sox', status: 'completed' as GameStatus, priority: 'high' as Priority, scheduledTime: yesterday, completedAt: yesterday, homeScore: 4, awayScore: 7, spread: null, totalValue: null, awayTeamRecord: getMockRecord('New York Yankees'), homeTeamRecord: getMockRecord('Boston Red Sox') },
+    { id: 'c4', awayTeam: 'Philadelphia 76ers', homeTeam: 'Miami Heat', status: 'completed' as GameStatus, priority: 'low' as Priority, scheduledTime: yesterday, completedAt: yesterday, homeScore: 110, awayScore: 95, spread: null, totalValue: null, awayTeamRecord: getMockRecord('Philadelphia 76ers'), homeTeamRecord: getMockRecord('Miami Heat') },
     // Completed - 2 days ago
-    { id: 'c5', awayTeam: 'San Francisco Giants', homeTeam: 'Los Angeles Dodgers', status: 'completed' as GameStatus, priority: 'low' as Priority, scheduledTime: twoDaysAgo, completedAt: twoDaysAgo, homeScore: 6, awayScore: 3, spread: null, totalValue: null },
+    { id: 'c5', awayTeam: 'San Francisco Giants', homeTeam: 'Los Angeles Dodgers', status: 'completed' as GameStatus, priority: 'low' as Priority, scheduledTime: twoDaysAgo, completedAt: twoDaysAgo, homeScore: 6, awayScore: 3, spread: null, totalValue: null, awayTeamRecord: getMockRecord('San Francisco Giants'), homeTeamRecord: getMockRecord('Los Angeles Dodgers') },
   ]
 }
 

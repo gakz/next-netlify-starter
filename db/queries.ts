@@ -5,6 +5,11 @@ import { derivePriority, getLatestSnapshot, type Priority } from './derive-prior
 
 export type GameStatus = 'upcoming' | 'live' | 'completed'
 
+export interface TeamRecord {
+  wins: number
+  losses: number
+}
+
 export interface GameWithDetails {
   id: string
   awayTeam: string
@@ -17,6 +22,8 @@ export interface GameWithDetails {
   awayScore: number | null
   spread: number | null // Point spread for upcoming games (negative = home favorite)
   totalValue: number | null // Over/under total
+  awayTeamRecord: TeamRecord | null // Away team win/loss record
+  homeTeamRecord: TeamRecord | null // Home team win/loss record
 }
 
 /**
@@ -32,6 +39,16 @@ function getLatestExpectation(
   )
 
   return { spread: latest.spreadHome, totalValue: latest.totalValue }
+}
+
+/**
+ * Extract team record from team data
+ * Returns null if record hasn't been set (both 0-0)
+ */
+function getTeamRecord(team: { wins: number; losses: number }): TeamRecord | null {
+  // If both wins and losses are 0, consider record as not set
+  if (team.wins === 0 && team.losses === 0) return null
+  return { wins: team.wins, losses: team.losses }
 }
 
 /**
@@ -63,6 +80,8 @@ export async function getGames(): Promise<GameWithDetails[]> {
       awayScore: latestSnapshot?.awayScore ?? null,
       spread,
       totalValue,
+      awayTeamRecord: getTeamRecord(game.awayTeam),
+      homeTeamRecord: getTeamRecord(game.homeTeam),
     }
   })
 }
@@ -97,6 +116,8 @@ export async function getGamesByStatus(status: GameStatus): Promise<GameWithDeta
       awayScore: latestSnapshot?.awayScore ?? null,
       spread,
       totalValue,
+      awayTeamRecord: getTeamRecord(game.awayTeam),
+      homeTeamRecord: getTeamRecord(game.homeTeam),
     }
   })
 }
@@ -135,6 +156,8 @@ export async function getCompletedGames(since?: Date): Promise<GameWithDetails[]
       awayScore: latestSnapshot?.awayScore ?? null,
       spread,
       totalValue,
+      awayTeamRecord: getTeamRecord(game.awayTeam),
+      homeTeamRecord: getTeamRecord(game.homeTeam),
     }
   })
 }

@@ -3,6 +3,11 @@
 export type Priority = 'low' | 'medium' | 'high'
 export type GameStatus = 'upcoming' | 'live' | 'completed'
 
+export interface TeamRecord {
+  wins: number
+  losses: number
+}
+
 export interface Game {
   id: string
   awayTeam: string
@@ -15,6 +20,8 @@ export interface Game {
   awayScore: number | null
   spread: number | null // Point spread (negative = home favorite)
   totalValue: number | null // Over/under total
+  awayTeamRecord: TeamRecord | null // Away team win/loss record
+  homeTeamRecord: TeamRecord | null // Home team win/loss record
 }
 
 export interface GameCardProps {
@@ -95,31 +102,68 @@ function getSpreadAdjustment(spread: number | null): number {
 }
 
 /**
+ * Calculate team record-based adjustment for upcoming games
+ * Games between two strong teams or evenly matched teams get a boost
+ * Games with a big mismatch get a penalty
+ * Returns adjustment from -1 to +1
+ */
+function getRecordAdjustment(
+  awayRecord: TeamRecord | null,
+  homeRecord: TeamRecord | null
+): number {
+  if (!awayRecord || !homeRecord) return 0
+
+  const awayWinPct = awayRecord.wins / (awayRecord.wins + awayRecord.losses)
+  const homeWinPct = homeRecord.wins / (homeRecord.wins + homeRecord.losses)
+  const avgWinPct = (awayWinPct + homeWinPct) / 2
+  const winPctDiff = Math.abs(awayWinPct - homeWinPct)
+
+  // Both teams are strong (avg win% > 60%) - boost for marquee matchup
+  if (avgWinPct > 0.6 && winPctDiff < 0.15) return 1
+  // Evenly matched teams (similar records) - slight boost
+  if (winPctDiff < 0.1) return 0.5
+  // Moderate mismatch - no adjustment
+  if (winPctDiff < 0.2) return 0
+  // Large mismatch (one good team, one bad) - slight penalty
+  if (winPctDiff < 0.3) return -0.5
+  // Huge mismatch - penalty
+  return -1
+}
+
+/**
  * Calculate watchability score (1-10 displayed, but constrained to ~3-9)
  * State-based caps:
- * - Upcoming: max 6.5 (can be boosted by close spread)
+ * - Upcoming: max 7 (can be boosted by close spread + good records)
  * - Completed: max 8 (avoid 9+)
  * - Live: full range
  *
- * For upcoming games, spread affects the score:
+ * For upcoming games, spread and team records affect the score:
  * - Close spreads (pick'em to -3) boost the rating
  * - Large spreads (-10+) lower the rating
+ * - Two strong teams or evenly matched records boost the rating
+ * - Big record mismatches lower the rating
  */
-function getWatchabilityScore(priority: Priority, status: GameStatus, spread: number | null = null): number {
+function getWatchabilityScore(
+  priority: Priority,
+  status: GameStatus,
+  spread: number | null = null,
+  awayRecord: TeamRecord | null = null,
+  homeRecord: TeamRecord | null = null
+): number {
   // Base scores by priority
   const baseScores: Record<Priority, Record<GameStatus, number>> = {
     high: {
-      upcoming: 5.5,
+      upcoming: 5,
       live: 8.5,
       completed: 8,
     },
     medium: {
-      upcoming: 5,
+      upcoming: 4.5,
       live: 7,
       completed: 6.5,
     },
     low: {
-      upcoming: 4.5,
+      upcoming: 4,
       live: 5,
       completed: 4,
     },
@@ -127,11 +171,16 @@ function getWatchabilityScore(priority: Priority, status: GameStatus, spread: nu
 
   let score = baseScores[priority][status]
 
-  // Apply spread adjustment for upcoming games
-  if (status === 'upcoming' && spread !== null) {
-    score += getSpreadAdjustment(spread)
-    // Clamp upcoming games between 3 and 7
-    score = Math.max(3, Math.min(7, score))
+  // Apply adjustments for upcoming games
+  if (status === 'upcoming') {
+    // Apply spread adjustment
+    if (spread !== null) {
+      score += getSpreadAdjustment(spread)
+    }
+    // Apply record adjustment
+    score += getRecordAdjustment(awayRecord, homeRecord)
+    // Clamp upcoming games between 3 and 7.5
+    score = Math.max(3, Math.min(7.5, score))
   }
 
   return score
@@ -310,7 +359,13 @@ export default function GameCard({ game, isFavorite = false, showScores = false 
   const isLive = game.status === 'live'
   const isUpcoming = game.status === 'upcoming'
   const hasScores = game.awayScore !== null && game.homeScore !== null
-  const watchabilityScore = getWatchabilityScore(game.priority, game.status, game.spread)
+  const watchabilityScore = getWatchabilityScore(
+    game.priority,
+    game.status,
+    game.spread,
+    game.awayTeamRecord,
+    game.homeTeamRecord
+  )
 
   return (
     <div
