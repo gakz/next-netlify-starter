@@ -433,16 +433,27 @@ export default async function handler(req: Request, context: Context) {
     const activity = await checkGameActivity(db)
     const shouldFetchScores = activity.hasLiveGames || activity.hasGamesStartingSoon
 
-    // Only fetch odds every 30 minutes when no games are active
-    // This reduces API usage during off-peak hours while maintaining data freshness
-    const currentMinute = new Date().getMinutes()
-    const isOddsRefreshTime = currentMinute < 5 || (currentMinute >= 30 && currentMinute < 35) // First 5 minutes of each 30-min window
-    const shouldFetchOdds = shouldFetchScores || isOddsRefreshTime
+    // Ultra-low API mode:
+    // - Active games (live or starting within 1 hour): fetch every 5 minutes
+    // - No active games: fetch once per day at 6 AM UTC to get upcoming game odds
+    const now = new Date()
+    const currentHourUTC = now.getUTCHours()
+    const currentMinute = now.getMinutes()
+    const isDailyRefreshTime = currentHourUTC === 6 && currentMinute < 5 // 6:00-6:05 AM UTC
+    const shouldFetchOdds = shouldFetchScores || isDailyRefreshTime
+
+    // Determine fetch mode for logging
+    const fetchMode = shouldFetchScores
+      ? 'ACTIVE (odds + scores every 5 min)'
+      : isDailyRefreshTime
+        ? 'DAILY (once-per-day odds refresh)'
+        : 'SKIP'
 
     console.log('=== Ingestion Status ===')
+    console.log(`Current time: ${now.toISOString()}`)
     console.log(`Live games: ${activity.liveGameCount}`)
     console.log(`Games starting within hour: ${activity.upcomingWithinHour}`)
-    console.log(`Fetch strategy: ${shouldFetchScores ? 'ACTIVE (odds + scores)' : shouldFetchOdds ? 'REFRESH (odds only)' : 'SKIP'}`)
+    console.log(`Fetch strategy: ${fetchMode}`)
 
     // Skip entirely if no games active and not time for odds refresh
     if (!shouldFetchOdds) {
@@ -537,10 +548,13 @@ export default async function handler(req: Request, context: Context) {
 }
 
 // Netlify scheduled function config: runs every 5 minutes
-// Actual API usage is optimized based on game activity:
-// - Live games: fetches odds + scores (2 API calls per sport)
-// - Games starting soon: fetches odds + scores (2 API calls per sport)
-// - No active games: fetches odds only every 30 min (1 API call per sport), skips other runs
+// Ultra-low API mode - optimized for 500 credits/month free tier:
+// - Live games or starting within 1 hour: fetches odds + scores every 5 min (2 API calls per sport)
+// - No active games: fetches odds ONCE per day at 6 AM UTC (1 API call per sport)
+// Credit usage estimate:
+// - Daily refresh: 2 credits/day (1 credit × 2 sports)
+// - Active game day (6 hours): ~144 credits (72 runs × 2 credits)
+// - Monthly estimate: ~60 credits (baseline) + ~150 credits (game days) = ~200-300 credits/month
 // Note: We only fetch 'spreads' market (not 'totals') to minimize credit usage (1 credit vs 2 per call)
 export const config: Config = {
   schedule: '*/5 * * * *',
