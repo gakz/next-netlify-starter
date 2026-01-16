@@ -433,9 +433,10 @@ export default async function handler(req: Request, context: Context) {
     const activity = await checkGameActivity(db)
     const shouldFetchScores = activity.hasLiveGames || activity.hasGamesStartingSoon
 
-    // Only fetch odds every 15 minutes when no games are active (3rd run of 5-min cycle)
+    // Only fetch odds every 30 minutes when no games are active
+    // This reduces API usage during off-peak hours while maintaining data freshness
     const currentMinute = new Date().getMinutes()
-    const isOddsRefreshTime = currentMinute % 15 < 5 // First 5 minutes of each 15-min window
+    const isOddsRefreshTime = currentMinute < 5 || (currentMinute >= 30 && currentMinute < 35) // First 5 minutes of each 30-min window
     const shouldFetchOdds = shouldFetchScores || isOddsRefreshTime
 
     console.log('=== Ingestion Status ===')
@@ -537,9 +538,10 @@ export default async function handler(req: Request, context: Context) {
 
 // Netlify scheduled function config: runs every 5 minutes
 // Actual API usage is optimized based on game activity:
-// - Live games: fetches odds + scores (2 API calls)
-// - Games starting soon: fetches odds + scores (2 API calls)
-// - No active games: fetches odds only every 15 min (1 API call), skips other runs
+// - Live games: fetches odds + scores (2 API calls per sport)
+// - Games starting soon: fetches odds + scores (2 API calls per sport)
+// - No active games: fetches odds only every 30 min (1 API call per sport), skips other runs
+// Note: We only fetch 'spreads' market (not 'totals') to minimize credit usage (1 credit vs 2 per call)
 export const config: Config = {
   schedule: '*/5 * * * *',
 }

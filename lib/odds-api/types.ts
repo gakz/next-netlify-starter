@@ -104,21 +104,24 @@ export interface SportConfig {
 }
 
 // Supported sports configuration
+// Note: We only fetch 'spreads' market to minimize API credit usage.
+// Each market costs 1 credit per region. 'totals' was removed as it wasn't
+// being used in watchability calculations.
 export const SUPPORTED_SPORTS: SportConfig[] = [
   {
     key: 'basketball_nba',
     name: 'NBA',
-    markets: ['spreads', 'totals'],
+    markets: ['spreads'],
   },
   {
     key: 'americanfootball_nfl',
     name: 'NFL',
-    markets: ['spreads', 'totals'],
+    markets: ['spreads'],
   },
   // Future sports can be added here:
   // {
   //   key: 'baseball_mlb',
   //   name: 'MLB',
-  //   markets: ['spreads', 'totals'],
+  //   markets: ['spreads'],
   // },
 ]

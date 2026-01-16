@@ -2,7 +2,8 @@ import type { Event, Bookmaker, Market, NormalizedExpectation } from './types'
 
 /**
  * Normalizes raw odds data from The Odds API into our internal format.
- * Extracts spread and totals markets from the first available bookmaker.
+ * Extracts spread market from the first available bookmaker.
+ * Note: Totals market is no longer fetched to minimize API credit usage.
  */
 
 /**
@@ -51,54 +52,33 @@ function extractSpreads(
   }
 }
 
-/**
- * Extract totals values from a totals market
- */
-function extractTotals(market: Market): {
-  totalValue: number | null
-  totalOverPrice: number | null
-  totalUnderPrice: number | null
-} {
-  const overOutcome = market.outcomes.find((o) => o.name === 'Over')
-  const underOutcome = market.outcomes.find((o) => o.name === 'Under')
-
-  return {
-    totalValue: overOutcome?.point ?? underOutcome?.point ?? null,
-    totalOverPrice: overOutcome?.price ?? null,
-    totalUnderPrice: underOutcome?.price ?? null,
-  }
-}
+// Note: extractTotals function was removed as we no longer fetch totals market
+// to reduce API credit usage. The totalValue fields are kept in the schema
+// for backwards compatibility but will always be null going forward.
 
 /**
  * Normalize a single event into our internal format
+ * Note: We only fetch spreads market to minimize API credit usage.
+ * totalValue fields are kept for schema compatibility but will always be null.
  */
 export function normalizeEvent(event: Event): NormalizedExpectation | null {
-  // Find a bookmaker with both spreads and totals
-  const bookmaker = findBookmakerWithMarkets(event.bookmakers, [
-    'spreads',
-    'totals',
-  ])
+  // Find a bookmaker with spreads market (we no longer fetch totals to save API credits)
+  const bookmaker = findBookmakerWithMarkets(event.bookmakers, ['spreads'])
 
   if (!bookmaker) {
-    // Try to get partial data if at least one market is available
+    // Try to get spreads from any bookmaker
     const anyBookmaker = event.bookmakers[0]
     if (!anyBookmaker) {
       return null
     }
 
     const spreadsMarket = anyBookmaker.markets.find((m) => m.key === 'spreads')
-    const totalsMarket = anyBookmaker.markets.find((m) => m.key === 'totals')
 
-    if (!spreadsMarket && !totalsMarket) {
+    if (!spreadsMarket) {
       return null
     }
 
-    const spreads = spreadsMarket
-      ? extractSpreads(spreadsMarket, event.home_team)
-      : { spreadHome: null, spreadAway: null }
-    const totals = totalsMarket
-      ? extractTotals(totalsMarket)
-      : { totalValue: null, totalOverPrice: null, totalUnderPrice: null }
+    const spreads = extractSpreads(spreadsMarket, event.home_team)
 
     return {
       externalEventId: event.id,
@@ -107,20 +87,19 @@ export function normalizeEvent(event: Event): NormalizedExpectation | null {
       homeTeam: event.home_team,
       awayTeam: event.away_team,
       ...spreads,
-      ...totals,
+      // Totals no longer fetched to save API credits
+      totalValue: null,
+      totalOverPrice: null,
+      totalUnderPrice: null,
       bookmaker: anyBookmaker.key,
     }
   }
 
   const spreadsMarket = bookmaker.markets.find((m) => m.key === 'spreads')
-  const totalsMarket = bookmaker.markets.find((m) => m.key === 'totals')
 
   const spreads = spreadsMarket
     ? extractSpreads(spreadsMarket, event.home_team)
     : { spreadHome: null, spreadAway: null }
-  const totals = totalsMarket
-    ? extractTotals(totalsMarket)
-    : { totalValue: null, totalOverPrice: null, totalUnderPrice: null }
 
   return {
     externalEventId: event.id,
@@ -129,7 +108,10 @@ export function normalizeEvent(event: Event): NormalizedExpectation | null {
     homeTeam: event.home_team,
     awayTeam: event.away_team,
     ...spreads,
-    ...totals,
+    // Totals no longer fetched to save API credits
+    totalValue: null,
+    totalOverPrice: null,
+    totalUnderPrice: null,
     bookmaker: bookmaker.key,
   }
 }
